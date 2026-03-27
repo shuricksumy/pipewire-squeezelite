@@ -1,0 +1,53 @@
+services:
+  squeezelite-dx5:
+    # Use the image you just built and pushed
+    image: ghcr.io/shuricksumy/squeezelite-pipewire:latest
+    container_name: squeezelite-dx5
+    restart: unless-stopped
+    
+    # Required for Squeezelite to be discovered by LMS (Logitech Media Server)
+    network_mode: host
+
+    # Audio permissions and Real-Time priority
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+    ulimits:
+      rtprio: 95
+      memlock: -1
+      msgqueue: 8192000
+    group_add:
+      - audio
+      - video # Sometimes required for shared memory access in newer PipeWire versions
+
+    environment:
+      - PLAYER_NAME=DX5  # part of name like in wpctl status Audio - to set volume
+      - SERVER_IP=192.168.111.111
+      - MAC_ADDR=72:23:90:88:38:63
+      
+      # PipeWire Configuration
+      - PIPEWIRE_RUNTIME_DIR=/tmp
+      - PIPEWIRE_REMOTE=pipewire-0
+      # Match this to your grep logic in the Dockerfile
+      - PIPEWIRE_NODE=alsa_output.usb-Topping_DX5-00.analog-stereo
+      
+      # Squeezelite Performance Tweaks
+      # -a: buffer time, count, format, mmap
+      # -b: stream and output buffers
+      # -D: delay for output start
+      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -D 500
+
+    volumes:
+      # Map the host's PipeWire socket. 
+      # Ensure '1000' matches the UID of the user logged into the host desktop.
+      - /run/user/1000/pipewire-0:/tmp/pipewire-0
+      
+      # Essential for PipeWire's shared memory communication
+      - /dev/shm:/dev/shm
+      
+      # Optional: Map ALSA devices directly as a fallback
+      - /dev/snd:/dev/snd
+
+    # Note: If running as a non-root user (1000), 
+    # ensure the user has permission to /dev/snd on the host.
+    # user: "1000:1000"
