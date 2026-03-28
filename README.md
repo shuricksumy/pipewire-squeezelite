@@ -114,7 +114,7 @@ services:
       - PIPEWIRE_RUNTIME_DIR=/tmp
       - PIPEWIRE_REMOTE=pipewire-0
       - PIPEWIRE_NODE=alsa_output.usb-Topping_DX5-00.analog-stereo # like sync name in wpctl status
-      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -D 500
+      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -C 5 -U Master #squeezelite -L
     volumes:
       - /run/user/1000/pipewire-0:/tmp/pipewire-0
       - /dev/shm:/dev/shm

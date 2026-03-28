@@ -35,7 +35,7 @@ services:
       # -a: buffer time, count, format, mmap
       # -b: stream and output buffers
       # -D: delay for output start
-      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -D 500
+      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -C 5  -U Master #squeezelite -L
 
     volumes:
       # Map the host's PipeWire socket. 

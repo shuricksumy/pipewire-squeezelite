@@ -17,7 +17,7 @@ services:
       - PIPEWIRE_REMOTE=pipewire-0
       # Target your DX5 specifically
       - PIPEWIRE_NODE=alsa_output.usb-Topping_DX5-00.analog-stereo # like sync name in wpctl status
-      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -D 500
+      - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -C 5  -U Master #squeezelite -L
     cap_add:
       - SYS_NICE
     ulimits:
