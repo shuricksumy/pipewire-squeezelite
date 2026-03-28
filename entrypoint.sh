@@ -45,6 +45,5 @@ exec /usr/local/bin/squeezelite \
     -n "${PLAYER_NAME}" \
     -s "${SERVER_IP}" \
     -m "${MAC_ADDR}" \
-    -U Master \
     -d all=info \
     ${SQUEEZE_EXTRA}
