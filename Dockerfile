@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 # Copy your local squeezelite source (submodule)
-COPY squeezelite/ .
+# COPY squeezelite/ .
+COPY squeezelite-orig/ .
 
 # Compile with optimized flags for high-end audio
 RUN make clean && \

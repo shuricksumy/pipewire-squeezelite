@@ -1,3 +1,6 @@
 [submodule "squeezelite"]
 	path = squeezelite
 	url = https://github.com/klslz/squeezelite.git
+[submodule "squeezelite-orig"]
+	path = squeezelite-orig
+	url = https://github.com/ralph-irving/squeezelite.git
