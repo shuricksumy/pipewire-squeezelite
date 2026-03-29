@@ -16,18 +16,11 @@ fi
 
 # 2. Targeted Volume Initialization
 # This regex finds the line under your PLAYER_NAME that points to the hardware
-TARGET_SINK_NAME=$(wpctl status | grep -A 5 "Sinks:" | grep "${PLAYER_NAME}" | grep -oE '[0-9]+' | head -n 1)
+TARGET_ID=$(wpctl status | grep -A 20 "Sinks:" | grep "${PLAYER_NAME}" | grep -oE '[0-9]+' | head -n 1)
 
-if [ -n "$TARGET_SINK_NAME" ]; then
-    log "INFO" "Detected output hardware: $TARGET_SINK_NAME"
-    
-    # Now find the numeric ID of that Sink in the Sinks section
-    TARGET_ID=$(wpctl status | grep -A 20 "Sinks:" | grep "$TARGET_SINK_NAME" | grep -oE '^[[:space:]]*[0-9]{1,3}' | tr -d ' ' | head -n 1)
-    
-    if [ -n "$TARGET_ID" ]; then
-        log "INFO" "Found Sink ID: $TARGET_ID. Setting volume to 1.0"
-        wpctl set-volume "$TARGET_ID" 1.0
-    fi
+if [ -n "$TARGET_ID" ]; then
+    log "INFO" "Found Sink ID: $TARGET_ID. Setting volume to 1.0"
+    wpctl set-volume "$TARGET_ID" 1.0
 else
     log "WARN" "Could not trace stream $PLAYER_NAME to a hardware sink. Using default."
     wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0 || true
