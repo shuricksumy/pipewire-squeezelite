@@ -47,6 +47,11 @@ Restart PipeWire with ```systemctl --user restart pipewire wireplumber```
 
 ### ENVIRONMENT CONFIG
 
+Add your user to all needed groups:
+```Bash
+sudo usermod -aG bluetooth,audio,lp,pulse-access,video,render,docker $USER
+```
+
 Ensure the user session knows where its PipeWire runtime bus is located. This is critical for wpctl and PipeWire to communicate.
 
 ```Bash

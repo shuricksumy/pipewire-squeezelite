@@ -22,7 +22,7 @@ else
 fi
 
 # Add to necessary groups for Real-Time and Hardware access
-sudo usermod -aG audio,video,rtkit "$TARGET_USER"
+sudo usermod -aG audio,video,rtkit,bluetooth,lp,pulse-access,render,docker "$TARGET_USER"
 
 # Enable 'lingering' so PipeWire stays alive after logout
 echo ">>> Enabling service lingering for '$TARGET_USER'..."
