@@ -84,6 +84,37 @@ systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumbe
 # 4. Verify Services are Running
 systemctl --user status pipewire wireplumber --no-pager
 ```
+
+## 🎧 Bluetooth Hi-Fi Playing Guide
+
+### Install the Core Engine
+
+This installs the Bluetooth daemon, the ALSA bridge, and the management utilities.
+```Bash
+sudo apt-get update
+sudo apt-get install bluetooth bluez bluez-tools alsa-utils
+```
+
+### Manage Devices (The "Lazy" TUI)
+
+- Install go pacakge ```https://github.com/bluetuith-org/bluetuith``` or use from ``` utils ``` folder 
+
+- Instead of complex commands, use the Go-based TUI to scan and pair:
+```Bash
+# Start the manager
+~/go/bin/bluetuith
+```
+- Identify Node Names
+Use this to find the Permanent Name of your FiiO, JBL, or Topping DX5:
+```Bash
+pw-cli ls Node | grep -E 'node.name|node.description'
+```
+
+- Set in docker compose your node like
+```
+- PIPEWIRE_NODE="bluez_output.20_18_12_00_07_C4.1"
+```
+
 ## 🚀 Deployment (Docker Compose)
 
 Use the following ```docker-compose.yml``` to deploy Squeezelite.
