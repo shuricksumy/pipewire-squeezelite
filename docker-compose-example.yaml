@@ -36,6 +36,7 @@ services:
       # -b: stream and output buffers
       # -D: delay for output start
       - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -C 5  -U Master #squeezelite -L
+      - INIT_VOL=0.5 # Initial volume level (0.0 to 1.0) 
 
     volumes:
       # Map the host's PipeWire socket. 

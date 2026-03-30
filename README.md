@@ -167,6 +167,7 @@ services:
 |MAC_ADDR|Unique MAC address to identify the player.|Required|
 |PIPEWIRE_NODE|The specific PipeWire output name (find via wpctl status).|Required|
 |SQUEEZE_EXTRA|Extra Squeezelite arguments (buffers, etc).|See Compose|
+|INIT_VOL| Initial volume level (0.0 to 1.0) |See Compose|
 
 ## 🔍 Diagnostics & Monitoring
 

@@ -2,6 +2,10 @@
 # -e: exit on error | -x: print commands for debugging
 set -ex
 
+# --- 0. Configuration & Defaults ---
+# If INIT_VOL is not set or empty, default to 1.0
+VOLUME_SETTING="${INIT_VOL:-1.0}"
+
 # Simple log helper to match your style
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$1] $2"
@@ -19,12 +23,12 @@ fi
 TARGET_ID=$(wpctl status | grep -A 20 "Sinks:" | grep "${PLAYER_NAME}" | grep -oE '[0-9]+' | head -n 1)
 
 if [ -n "$TARGET_ID" ]; then
-    log "INFO" "Found Sink ID: $TARGET_ID. Setting volume to 1.0"
+    log "INFO" "Found Sink ID: $TARGET_ID. Setting volume to $VOLUME_SETTING"
     wpctl set-mute "$TARGET_ID" 0
-    wpctl set-volume "$TARGET_ID" 1.0
+    wpctl set-volume "$TARGET_ID" "$VOLUME_SETTING"
 else
     log "WARN" "Could not trace stream $PLAYER_NAME to a hardware sink. Using default."
-    wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0 || true
+    wpctl set-volume @DEFAULT_AUDIO_SINK@ "$VOLUME_SETTING" || true
 fi
 
 
