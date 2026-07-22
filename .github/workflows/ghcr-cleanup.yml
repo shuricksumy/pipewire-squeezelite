@@ -1,0 +1,37 @@
+name: GHCR package cleanup (dry run)
+
+# Manual-trigger only, dry-run only, for now. Unlike ledfx-snapcast-docker, this repo's
+# docker/metadata-action config never produces a per-push sha tag -- only `latest` and `main`,
+# both of which get repointed (not appended) on every push. That still orphans the *old* digest
+# each one used to point to, so this is about sweeping those orphaned untagged multi-arch layers,
+# plus being ready for a semver release tag if one is ever cut (metadata-action already has
+# type=semver configured, even though no release has happened yet). Review this run's "would
+# delete" log output in the Actions tab before flipping `dry-run` to `false` and adding a
+# `schedule:` trigger.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old ghcr.io package versions
+        uses: dataaxiom/ghcr-cleanup-action@v1.2.2
+        with:
+          owner: shuricksumy
+          # Published as ghcr.io/shuricksumy/squeezelite-pipewire -- build.yml's metadata images
+          # field is repository_owner-scoped, not the repo name.
+          package: "squeezelite-pipewire"
+          # Keep `latest`, `main`, and any future semver release tag; delete everything else plus
+          # orphaned untagged multi-arch layers. Flat alternation, no nested quantifiers -- a
+          # nested-quantifier pattern tripped this action's own ReDoS safety heuristic on every
+          # other repo this was set up on.
+          delete-tags: ".*"
+          exclude-tags: '^latest$|^main$|^[0-9]+\.[0-9]+$|^[0-9]+\.[0-9]+\.[0-9]+$'
+          use-regex: true
+          delete-untagged: true
+          dry-run: true
+          log-level: info

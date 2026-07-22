@@ -28,6 +28,8 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,3 +77,29 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  scan:
+    # This workflow is named "Build_Push_Scan" but had no scan step -- same gap found and fixed
+    # in the sibling ledfx-snapcast-docker repo. Scans the pushed GHCR image itself (base Debian
+    # packages, the compiled squeezelite binary's runtime libs), not just source -- there's no
+    # Python/JS/etc. source here for CodeQL to analyze (Shell isn't a supported CodeQL language),
+    # so a container scan is the only applicable form of scanning for this repo.
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/squeezelite-pipewire:${{ needs.build-and-push.outputs.image_tag }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload Trivy results to the Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
