@@ -67,7 +67,7 @@ jobs:
 
       - name: Build and Push Docker Image
         # Updated to v6 for Node 24 support
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
