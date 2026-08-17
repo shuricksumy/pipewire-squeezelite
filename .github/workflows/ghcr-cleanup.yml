@@ -1,4 +1,4 @@
-name: GHCR package cleanup (dry run)
+name: GHCR package cleanup
 
 # Manual-trigger only, dry-run only, for now. Unlike ledfx-snapcast-docker, this repo's
 # docker/metadata-action config never produces a per-push sha tag -- only `latest` and `main`,
@@ -33,5 +33,5 @@ jobs:
           exclude-tags: '^latest$|^main$|^[0-9]+\.[0-9]+$|^[0-9]+\.[0-9]+\.[0-9]+$'
           use-regex: true
           delete-untagged: true
-          dry-run: true
+          dry-run: false
           log-level: info
