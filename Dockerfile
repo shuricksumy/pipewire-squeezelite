@@ -89,9 +89,25 @@ RUN ldd /usr/local/bin/squeezelite && \
     done && \
     /usr/local/bin/squeezelite -? | grep '^Build options:'
 
+# Run unprivileged. UID/GID 1000 is the default because the host socket that
+# gets mounted in (/run/user/1000/pipewire-0) is normally owned by the desktop
+# user; if yours differs, override with `user: "<uid>:<gid>"` in compose.
+# The audio group is for the optional /dev/snd passthrough.
+RUN groupadd -g 1000 squeezelite && \
+    useradd -u 1000 -g 1000 -G audio -M -s /usr/sbin/nologin squeezelite && \
+    install -d -o 1000 -g 1000 /home/squeezelite
+
+# PipeWire/WirePlumber clients write state under $HOME, which must be writable
+ENV HOME=/home/squeezelite
+
 # Ensure /tmp is used for PipeWire runtime if not specified
 ENV PIPEWIRE_RUNTIME_DIR=/tmp
 ENV PIPEWIRE_REMOTE=pipewire-0
+
+USER 1000:1000
+
+# Confirm the unprivileged user can actually execute the binary
+RUN /usr/local/bin/squeezelite -? > /dev/null
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

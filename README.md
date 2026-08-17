@@ -193,7 +193,7 @@ This project uses a multi-stage Docker build.
 
 - Stage 1 (Builder): Compiles Squeezelite from the upstream [ralph-irving/squeezelite](https://github.com/ralph-irving/squeezelite) Git submodule. Codecs: FLAC (incl. Ogg FLAC), AAC (faad), MP3 (mad + mpg123), Vorbis, Opus, and DSD (native + DoP). Also enabled: soxr resampling (multi-threaded), HTTPS/TLS streams, and visualiser export.
 
-- Stage 2 (Runtime): A slim Debian Trixie image containing only the necessary libraries and PipeWire plugins.
+- Stage 2 (Runtime): A slim Debian Trixie image containing only the necessary libraries and PipeWire plugins. It runs **unprivileged as UID/GID 1000**, which matches the desktop user that normally owns `/run/user/1000/pipewire-0` on the host. If your host user has a different UID, override it with `user: "<uid>:<gid>"` in your compose file, otherwise the container cannot open the PipeWire socket.
 
 To build locally:
 ```bash

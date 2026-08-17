@@ -14,6 +14,10 @@ on:
       - '*.md'
   release:
     types: [published]
+  # Rebuild weekly so Debian security updates reach the published image even
+  # when there are no commits (paths-ignore above only applies to push events)
+  schedule:
+    - cron: '0 4 * * 1'
   workflow_dispatch:
     inputs:
       tag_name:
@@ -97,6 +101,10 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
+          # Debian carries a large backlog of CVEs it has not patched; reporting
+          # them buries the ones we can actually act on (a rebuild picks up the
+          # fix). Only alert on vulnerabilities that have a fixed version.
+          ignore-unfixed: true
           exit-code: "0"
 
       - name: Upload Trivy results to the Security tab
