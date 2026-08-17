@@ -191,7 +191,7 @@ cat /proc/asound/card*/pcm0p/sub0/hw_params
 ## 🏗️ Build Information
 This project uses a multi-stage Docker build.
 
-- Stage 1 (Builder): Compiles Squeezelite from the included Git submodule with support for FLAC, DSD, SSL, and Resampling.
+- Stage 1 (Builder): Compiles Squeezelite from the upstream [ralph-irving/squeezelite](https://github.com/ralph-irving/squeezelite) Git submodule. Codecs: FLAC (incl. Ogg FLAC), AAC (faad), MP3 (mad + mpg123), Vorbis, Opus, and DSD (native + DoP). Also enabled: soxr resampling (multi-threaded), HTTPS/TLS streams, and visualiser export.
 
 - Stage 2 (Runtime): A slim Debian Trixie image containing only the necessary libraries and PipeWire plugins.
 
