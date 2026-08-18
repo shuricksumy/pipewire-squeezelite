@@ -9,26 +9,67 @@ This repository provides a high-performance Squeezelite Docker container optimiz
 
 - PipeWire Native: Uses the modern PipeWire audio engine for low-latency routing and superior volume management.
 
+- Full Codec Set: FLAC (incl. Ogg FLAC), AAC, MP3, Vorbis, Opus and DSD (native + DoP), with soxr resampling and HTTPS stream support compiled in.
+
 - Multi-Arch Support: Builds for both amd64 (PC) and arm64 (Raspberry Pi).
 
-- Automated Builds: GitHub Actions handle automated Docker builds and submodule updates.
+- Unprivileged: Runs as uid/gid 1000, not root - see [Verify the host is ready](#5-verify-the-host-is-ready).
+
+- Self-Healing: The entrypoint restarts squeezelite with exponential backoff (5s -> 60s) if it exits, instead of relying on a container restart.
+
+- Maintained Image: Rebuilt weekly so Debian security updates land without a commit, scanned with Trivy on every push, and the squeezelite submodule is checked daily against upstream.
 
 
 ## 🛠️ Host Setup (Preparation)
 
-Before running the container, your host system must be configured for PipeWire bit-perfect output.
+The container does **not** run its own PipeWire daemon - it connects to the host's through the
+bind-mounted socket. So the host has to be a working PipeWire machine first: run these steps in
+order, then use the [readiness check](#5-verify-the-host-is-ready) at the end before starting the
+container.
 
-### Install PipeWire & Tools
+> **Shortcut:** [`ubuntu-pipewire-install-on-host.sh`](ubuntu-pipewire-install-on-host.sh) performs
+> steps 1-5 for a dedicated user, verifies the socket, and prints the compose settings for your
+> host: `./ubuntu-pipewire-install-on-host.sh <username>` (default user: `dietpi`).
 
-Run the following on your host machine to install the necessary audio stack:
+### 0. Prerequisites
 
+Docker Engine plus the Compose plugin ([install guide](https://docs.docker.com/engine/install/)),
+and the uid of the user whose PipeWire session the container will attach to. Note it now - the
+same number appears in the socket path *and* decides whether you need a `user:` line in compose:
 
 ```bash
-sudo apt update && sudo apt install -y pipewire pipewire-audio-client-libraries \
-    wireplumber pipewire-pulse alsa-utils rtkit-daemon
+id -u    # usually 1000
 ```
 
-### Configure Bit-Perfect Output
+### 1. Install PipeWire & Tools
+
+```bash
+sudo apt update && sudo apt install -y \
+    pipewire pipewire-audio pipewire-pulse pipewire-alsa \
+    wireplumber alsa-utils rtkit
+```
+
+> **Note:** the real-time helper package is `rtkit`, **not** `rtkit-daemon` - no such package
+> exists on Debian or Ubuntu, and apt aborts the entire command on one unknown name, so a single
+> typo leaves nothing installed. Likewise `pipewire-audio` is the current name of what used to be
+> `pipewire-audio-client-libraries`.
+
+### 2. Add your user to the audio groups
+
+`usermod -aG` is all-or-nothing: if **any** listed group does not exist it exits with an error and
+adds *none* of them. `bluetooth`, `render`, `pulse-access` and `docker` only exist once their
+package is installed, so add whichever are actually present:
+
+```bash
+for g in audio video render bluetooth lp docker; do
+    getent group "$g" >/dev/null && sudo usermod -aG "$g" "$USER"
+done
+
+# Group membership only applies to new sessions -- log out and back in, then verify:
+id -nG
+```
+
+### 3. Configure Bit-Perfect Output
 
 To allow your DAC to switch sample rates without resampling, create a configuration override for PipeWire:
 
@@ -36,59 +77,78 @@ To allow your DAC to switch sample rates without resampling, create a configurat
 mkdir -p ~/.config/pipewire/pipewire.conf.d/
 cat <<EOF > ~/.config/pipewire/pipewire.conf.d/bitperfect.conf
 context.properties = {
-    default.clock.rate          = 44100
+    # Rate used while nothing is playing; PipeWire switches to the source rate on demand
+    default.clock.rate          = 48000
+    # Trim this list to the rates your DAC actually supports
     default.clock.allowed-rates = [ 44100 48000 88200 96000 176400 192000 352800 384000 ]
     default.clock.min-quantum   = 32
     default.clock.max-quantum   = 8192
 }
 EOF
-```
-Restart PipeWire with ```systemctl --user restart pipewire wireplumber```
 
-### ENVIRONMENT CONFIG
-
-Add your user to all needed groups:
-```Bash
-sudo usermod -aG bluetooth,audio,lp,pulse-access,video,render,docker $USER
+systemctl --user restart pipewire pipewire-pulse wireplumber
 ```
 
-Ensure the user session knows where its PipeWire runtime bus is located. This is critical for wpctl and PipeWire to communicate.
+### 4. Keep the audio stack running headless
 
-```Bash
-echo ">>> Configuring environment for PipeWire..."
+On a server, the user's PipeWire services only start when that user logs in. Lingering keeps them
+up so the DAC is available to the container across reboots and logouts:
 
-# Add to .bashrc if not already present
-if ! grep -q "XDG_RUNTIME_DIR" ~/.bashrc; then
-  echo 'export XDG_RUNTIME_DIR="/run/user/$(id -u)"' >> ~/.bashrc
-  echo ">>> XDG_RUNTIME_DIR added to ~/.bashrc"
-fi
+```bash
+# 1. Keep this user's services running when nobody is logged in.
+#    This is also what makes systemd create and keep /run/user/<uid>/, which is
+#    where the socket the container mounts lives.
+sudo loginctl enable-linger "$USER"
 
-# Apply to current session immediately
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+# 2. Enable and start the audio services for the user session.
+#    The '--user' flag is mandatory here.
+systemctl --user enable --now pipewire.socket pipewire.service \
+    pipewire-pulse.service wireplumber.service
 
-# Verification: This should show your DAC (Topping DX5)
-wpctl status
-```
-
-### Host Audio Stack Activation
-On a server, PipeWire services usually only start when a user logs in physically. To ensure your Topping DX5 is always available to the Docker container, run the following:
-
-```Bash
-# 1. Enable 'Linger' for your user. 
-# This ensures PipeWire/WirePlumber stay running even when you are logged out.
-sudo loginctl enable-linger $(whoami)
-
-# 2. Configure the Environment for the current session
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
-
-# 3. Enable and Start the Audio Services for the user session
-# The '--user' flag is mandatory here.
-systemctl --user enable --now pipewire.service pipewire-pulse.service wireplumber.service
-
-# 4. Verify Services are Running
+# 3. Verify the services are running
 systemctl --user status pipewire wireplumber --no-pager
 ```
+
+When driving these from a root shell or a cron job rather than your own login session, point the
+tools at the right bus first:
+
+```bash
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+```
+
+### 5. Verify the host is ready
+
+All four of these must pass **before** you start the container - every one of them is something the
+container itself cannot fix:
+
+```bash
+# a) The socket the container bind-mounts exists and belongs to you.
+#    This exact path goes in the compose 'volumes:' entry.
+ls -l /run/user/$(id -u)/pipewire-0
+
+# b) WirePlumber sees your DAC. Note the sink name -- a substring of it is PLAYER_NAME.
+wpctl status
+
+# c) The exact node.name for PIPEWIRE_NODE
+pw-cli ls Node | grep -E 'node.name|node.description'
+
+# d) Audio actually reaches the DAC (you should hear it)
+speaker-test -c 2 -t sine -l 1
+```
+
+Then wire the results into your compose file:
+
+| Check | Goes into |
+| :-- | :-- |
+| `id -u` (e.g. `1000`) | the socket path, plus `user: "<uid>:<gid>"` if it is **not** 1000 |
+| socket path from (a) | `volumes: - /run/user/1000/pipewire-0:/tmp/pipewire-0` |
+| sink name from (b) | `PLAYER_NAME` (substring is enough) |
+| `node.name` from (c) | `PIPEWIRE_NODE` |
+
+The image runs as uid/gid **1000**. If the user that owns the socket in (a) has a different uid,
+add `user: "<uid>:<gid>"` to the service or the container will start but never reach PipeWire -
+the entrypoint logs `PipeWire socket not found` and playback stays silent.
 
 ## 🎧 Bluetooth Hi-Fi Playing Guide
 

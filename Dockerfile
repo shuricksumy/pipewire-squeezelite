@@ -104,7 +104,11 @@ ENV HOME=/home/squeezelite
 ENV PIPEWIRE_RUNTIME_DIR=/tmp
 ENV PIPEWIRE_REMOTE=pipewire-0
 
-USER 1000:1000
+# Named, not numeric: Docker only applies supplementary groups (i.e. audio) when
+# USER is a name it can look up in /etc/passwd. "USER 1000:1000" silently drops
+# them. An override like compose `user: "1003:1003"` is numeric and drops them
+# again, which is what the `group_add: audio` in the compose files is for.
+USER squeezelite
 
 # Confirm the unprivileged user can actually execute the binary
 RUN /usr/local/bin/squeezelite -? > /dev/null
