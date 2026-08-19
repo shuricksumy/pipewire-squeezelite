@@ -169,8 +169,9 @@ cat <<EOF
 Pick PLAYER_NAME from the sink names in 'wpctl status' above, and PIPEWIRE_NODE from:
   sudo -u $TARGET_USER XDG_RUNTIME_DIR=/run/user/$USER_UID pw-cli ls Node | grep -E 'node.name|node.description'
 
-SERVER_IP is your Logitech/Lyrion Media Server as <ip>:3483, and MAC_ADDR must be
-unique per player -- LMS keys each player's settings off it.
+SERVER_IP is your music server as <ip>:3483 -- Music Assistant (Squeezelite provider)
+or Lyrion Music Server / LMS. MAC_ADDR must be unique per player: the server keys
+each player's saved settings off it.
 
 If you added groups to your own login user, log out and back in for them to apply.
 

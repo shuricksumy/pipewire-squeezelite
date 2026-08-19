@@ -2,6 +2,65 @@
 
 This repository provides a high-performance Squeezelite Docker container optimized for PipeWire and bit-perfect audio delivery. It is specifically pre-configured for high-end DACs like the Topping DX5, supporting sample rates up to 384kHz and DSD.
 
+[![Build_Push_Scan](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml/badge.svg)](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml)
+
+## 🎯 Why this exists
+
+[**Music Assistant**](https://www.music-assistant.io/) is the library and streaming brain — Spotify,
+Plex, local files, radio — and Home Assistant drives it. What it cannot do on its own is put audio
+into a **USB DAC plugged into some other Linux box**, at the original sample rate, with the volume
+landing on the real hardware.
+
+Music Assistant covers the protocol half: it emulates a Logitech Media Server and implements
+the full [Slim protocol](https://github.com/music-assistant/aioslimproto), so any squeezelite player
+on the network becomes a player it can drive — see its
+[Squeezelite provider](https://www.music-assistant.io/player-support/squeezelite/).
+
+**This image is the player for the hi-fi end of that chain.** It plays into the host's PipeWire
+session instead of grabbing an ALSA device, so the DAC follows the source rate (44.1 kHz stays
+44.1 kHz, no resampling), DSD is decoded natively or passed through as DoP (`-D`), and volume is
+handed to the PipeWire mixer with `-U Master` rather than being attenuated in software.
+
+```mermaid
+flowchart LR
+    subgraph MA["🎵 Music Assistant"]
+        LIB["Spotify · Plex<br/>local library · radio"] --> SP["built-in<br/>Slimproto server"]
+    end
+
+    SP -- "TCP 3483 control<br/>+ HTTP audio stream" --> SL["<b>this image</b><br/>squeezelite"]
+    SL -- "PipeWire socket" --> PW["host PipeWire"]
+    PW --> DAC["🔊 USB DAC<br/>Topping DX5"]
+
+    SP -. "other players" .-> OTHER["Squeezebox hardware<br/>piCorePlayer · ESP32"]
+
+    style SL stroke-width:3px
+```
+
+### Use it with Music Assistant
+
+Add the provider in MA — `Settings → Player Providers → Add a New Provider → Squeezelite` — and
+leave the port at the default **3483**. Then point this container at the MA host:
+
+```yaml
+environment:
+  - PLAYER_NAME=Lounge-DX5          # the name you will see in Music Assistant
+  - SERVER_IP=192.168.1.50:3483     # your Music Assistant host
+  - MAC_ADDR=72:23:90:88:38:63      # unique per player -- MA keys settings off it
+```
+
+The player appears in MA's player list, usually within a minute. Discovery is automatic on the same
+network, so `SERVER_IP` is really there to pin the choice — which is what you want if MA sits on
+another subnet, or if an LMS is also running and would otherwise grab the player first.
+
+| | |
+| :-- | :-- |
+| **Codec** | MA streams FLAC by default (MP3, AAC and WAV are also selectable). All four decode natively here, so nothing is transcoded twice. |
+| **Volume** | Squeezelite has no native mute, so MA offers a "fake mute". This image sidesteps it: on start it unmutes the hardware sink and sets it to `INIT_VOL` through `wpctl`. |
+| **One server at a time** | A slimproto player can only hold one server connection. If it never shows up in MA, check it is not still attached to an LMS. |
+
+**Prefer the classic?** [Lyrion Music Server](https://lyrion.org/) (formerly Logitech Media Server, "LMS")
+speaks the same protocol on the same port — point `SERVER_IP` at it instead and nothing else changes.
+
 
 ## Features
 
@@ -222,9 +281,9 @@ services:
 
 | Variable | Description | Default |
 | :--      | :--         | :--     |  
-| PLAYER_NAME |	The name that appears in Logitech Media Server (LMS). | TEST-DX5 |
-| SERVER_IP | The IP address of your LMS server.|Required|
-|MAC_ADDR|Unique MAC address to identify the player.|Required|
+| PLAYER_NAME |	The name that appears in Music Assistant / LMS. | TEST-DX5 |
+| SERVER_IP | Your music server as `<ip>` or `<ip>:3483` -- Music Assistant or LMS. |Required|
+|MAC_ADDR|Unique MAC address identifying the player; the server keys its saved settings off it.|Required|
 |PIPEWIRE_NODE|The specific PipeWire output name (find via wpctl status).|Required|
 |SQUEEZE_EXTRA|Extra Squeezelite arguments (buffers, etc).|See Compose|
 |INIT_VOL| Initial volume level (0.0 to 1.0) |See Compose|
