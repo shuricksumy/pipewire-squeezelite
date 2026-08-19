@@ -1,15 +1,20 @@
 name: GHCR package cleanup
 
-# Manual-trigger only, dry-run only, for now. Unlike ledfx-snapcast-docker, this repo's
-# docker/metadata-action config never produces a per-push sha tag -- only `latest` and `main`,
-# both of which get repointed (not appended) on every push. That still orphans the *old* digest
-# each one used to point to, so this is about sweeping those orphaned untagged multi-arch layers,
-# plus being ready for a semver release tag if one is ever cut (metadata-action already has
-# type=semver configured, even though no release has happened yet). Review this run's "would
-# delete" log output in the Actions tab before flipping `dry-run` to `false` and adding a
-# `schedule:` trigger.
+# Same reasoning as pipewire-snapclient's copy of this workflow: this repo's
+# docker/metadata-action config never produces a per-push sha tag -- only
+# `latest` and `main`, both of which get repointed (not appended) on every push.
+# That still orphans the *old* digest each one used to point to, so this sweeps
+# up those orphaned untagged multi-arch layers, and is ready for a semver
+# release tag if one is ever cut (metadata-action already has type=semver
+# configured, even though no release has happened yet).
+#
+# The 2026-07-22 dry run was reviewed before enabling real deletion, and the
+# live runs since have only ever removed orphaned digests. Monthly is plenty --
+# one orphan set accumulates per push.
 on:
   workflow_dispatch: {}
+  schedule:
+    - cron: '0 5 1 * *'
 
 permissions:
   packages: write
