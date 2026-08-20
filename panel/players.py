@@ -73,6 +73,16 @@ LATENCY_RE = re.compile(r"^\d{1,7}/\d{1,7}$")
 ALSA_FORMATS = ("", "16", "24", "24_3", "32")
 
 
+def resolve_role(env=None):
+    """Which role this container runs, mirroring entrypoint.sh.
+
+    Unset means the panel: with nothing configured, offering a UI beats failing
+    for want of a SERVER_IP.
+    """
+    env = os.environ if env is None else env
+    return (env.get("ROLE") or "").strip() or "panel"
+
+
 def _env_int(name, fallback):
     try:
         return int(os.environ.get(name) or fallback)

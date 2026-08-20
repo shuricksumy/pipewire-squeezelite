@@ -1,11 +1,23 @@
 #!/bin/bash
 # Squeezelite launcher. One image, two roles:
-#   ROLE=player (default) - one supervised squeezelite, configured by environment.
-#                           This is the original behaviour, unchanged.
-#   ROLE=panel            - the web panel, which supervises several players itself.
+#   ROLE=panel  - the web panel, which supervises several players itself.
+#                 This is the default: with nothing configured, the useful thing
+#                 to do is offer a UI rather than fail for want of a SERVER_IP.
+#   ROLE=player - one supervised squeezelite, configured entirely by environment.
 set -x
 
-ROLE="${ROLE:-player}"
+ROLE_GIVEN="${ROLE:-}"
+ROLE="${ROLE:-panel}"
+
+# Player settings with no ROLE is almost always a compose file written before
+# the panel existed. It is not overridden -- an explicit default beats a clever
+# one -- but it is worth saying out loud, because the symptom is silence.
+if [ -z "${ROLE_GIVEN:-}" ] && [ "$ROLE" = "panel" ] \
+   && [ -n "${PLAYER_NAME:-}${SERVER_IP:-}${MAC_ADDR:-}${SQUEEZE_EXTRA:-}" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] This container has player settings (PLAYER_NAME/SERVER_IP/...)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] but no ROLE, so it is starting the web panel and those are"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] ignored. Set ROLE=player for the single-player behaviour."
+fi
 
 if [ "$ROLE" = "panel" ]; then
     set +x
@@ -30,6 +42,7 @@ fi
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$1] $2"; }
 
 log "INFO" "--- Starting Squeezelite Environment ---"
+
 
 VOLUME_SETTING="${INIT_VOL:-1.0}"
 

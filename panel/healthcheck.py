@@ -13,7 +13,10 @@ import sys
 import urllib.error
 import urllib.request
 
-if os.environ.get("ROLE", "player") != "panel":
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from players import resolve_role  # noqa: E402
+
+if resolve_role() != "panel":
     sys.exit(0)
 
 url = "http://127.0.0.1:%s/api/players" % os.environ.get("PORT", "8080")

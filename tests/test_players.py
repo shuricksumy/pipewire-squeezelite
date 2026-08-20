@@ -114,6 +114,32 @@ def test_duplicate_names_are_rejected(supervisor):
         supervisor.create(dict(BASE, autostart=False))
 
 
+# ---- role resolution --------------------------------------------------------
+
+
+def test_nothing_configured_means_the_panel():
+    assert players.resolve_role({}) == "panel"
+
+
+def test_an_explicit_role_always_wins():
+    assert players.resolve_role({"ROLE": "player"}) == "player"
+    assert players.resolve_role({"ROLE": "panel", "PLAYER_NAME": "DX5"}) == "panel"
+
+
+@pytest.mark.parametrize(
+    "var", ["PLAYER_NAME", "SERVER_IP", "MAC_ADDR", "SQUEEZE_EXTRA"]
+)
+def test_player_settings_alone_do_not_change_the_default(var):
+    """An explicit default beats a clever one: these do not silently select the
+    player role. The entrypoint warns instead, because the symptom is silence."""
+    assert players.resolve_role({var: "something"}) == "panel"
+
+
+def test_an_empty_role_is_treated_as_unset():
+    assert players.resolve_role({"ROLE": ""}) == "panel"
+    assert players.resolve_role({"ROLE": "  "}) == "panel"
+
+
 # ---- ALSA output mode -------------------------------------------------------
 
 

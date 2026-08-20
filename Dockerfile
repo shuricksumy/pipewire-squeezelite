@@ -118,8 +118,9 @@ ENV PIPEWIRE_REMOTE=pipewire-0
 # again, which is what the `group_add: audio` in the compose files is for.
 USER squeezelite
 
-ENV ROLE=player \
-    PORT=8080
+# ROLE is deliberately NOT set here: an ENV would preempt the entrypoint's
+# decision, which needs to see whether the user configured anything at all.
+ENV PORT=8080
 
 # Report unhealthy only when the panel stops answering HTTP. ROLE=player has no
 # HTTP surface and is healthy by definition -- its own reconnect loop is the

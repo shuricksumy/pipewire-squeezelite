@@ -261,9 +261,24 @@ pw-cli ls Node | grep -E 'node.name|node.description'
 ## 🎛️ Web panel (ROLE=panel)
 
 Editing compose and redeploying for every player gets old fast — especially with
-several DACs on one host. Set `ROLE=panel` and the same image serves a small web
-UI instead: pick a PipeWire sink, name the player, press Add. It launches
-straight away and the panel keeps it alive.
+several DACs on one host. The panel is what the image runs by default: pick a
+PipeWire sink, name the player, press Add. It launches straight away and the panel
+keeps it alive. (Set `ROLE=player` for the original single-squeezelite-from-
+environment behaviour instead.)
+
+<p align="center">
+  <img src="docs/panel-players.png" width="92%" alt="The panel's player list: three players, two running against Music Assistant, one bound to a direct ALSA device">
+  <br><sub>Each row is a supervised squeezelite process with its own MAC, output and uptime.</sub>
+</p>
+
+Everything about a player is editable in place — including the parameters people
+usually reach for the compose file to change:
+
+<p align="center">
+  <img src="docs/panel-edit.png" width="92%" alt="The edit dialog: name, output sink, server, port, MAC, mixer control, sample format, ALSA buffer and periods, mmap, stream and output buffers, idle close, PipeWire latency, volume and extra arguments">
+  <br><sub>Sample format, buffers, idle close and the mixer control are first-class
+  fields, not hidden behind "advanced". Delete lives here rather than on every row.</sub>
+</p>
 
 ```bash
 mkdir -p ./panel_config && sudo chown -R 1000:1000 ./panel_config
@@ -382,7 +397,7 @@ behind a reverse proxy or Home Assistant Ingress, which serves it under a prefix
 
 | Variable | Description | Default |
 | :-- | :-- | :-- |
-| `ROLE` | `player` (one squeezelite from environment) or `panel` | `player` |
+| `ROLE` | `panel` (the web UI) or `player` (one squeezelite from environment) | `panel` |
 | `PORT` | Port the panel listens on | `8080` |
 | `SERVER_IP` | Seeds the Add-player form's server field | *(empty: discover)* |
 | `SERVER_PORT` | Seeds the form's port field | `3483` |
@@ -390,8 +405,13 @@ behind a reverse proxy or Home Assistant Ingress, which serves it under a prefix
 | `ADMIN_PASSWORD` | Enables Basic auth on every route | *(unset: no auth)* |
 | `CONFIG_DIR` | Where `players.json` is kept | `/config` |
 
-`ROLE=player` is the default and is completely unchanged: existing compose files
-keep working exactly as before, and none of the panel runs.
+**`ROLE=panel` is the image default.** Starting the image with nothing configured
+gives you the UI rather than a player that fails for want of a `SERVER_IP`. For the
+original single-player behaviour set `ROLE=player` explicitly — the shipped
+[`docker-compose.yml`](docker-compose.yml) and
+[`docker-compose-example.yaml`](docker-compose-example.yaml) both do now. A container
+carrying player settings but no `ROLE` starts the panel and says so in its log,
+because the symptom of getting that wrong is silence.
 
 
 ## 🚀 Deployment (Docker Compose)

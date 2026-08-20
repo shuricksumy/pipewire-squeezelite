@@ -17,6 +17,7 @@ services:
     network_mode: host
 
     environment:
+      # The image default, so it can be omitted; kept here for clarity.
       - ROLE=panel
       - PORT=8080
       # Seeds the "server" field of the Add-player form. Each player can still
