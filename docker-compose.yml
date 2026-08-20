@@ -2,6 +2,11 @@ services:
   squeezelite-dx5:
     build: .
     container_name: squeezelite-dx5
+    # Host networking gives this player broadcast discovery of the server.
+    # Caveat: if this machine also runs a snapcast/AirPlay/Cast player, Music
+    # Assistant may treat them as one device (same IP) and hide this one inside
+    # the other. If that happens, drop host mode and publish a port instead --
+    # see "Running several players on one host" in the README.
     network_mode: host
     #user: "1000:1000" # Matches your host user ID
     volumes:

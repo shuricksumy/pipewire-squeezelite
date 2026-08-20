@@ -12,16 +12,26 @@ services:
     container_name: squeezelite-panel
     restart: unless-stopped
 
-    # Slimproto discovery is broadcast-based, and players need to reach the
-    # server directly. Host networking keeps both simple.
-    network_mode: host
+    # NOT host networking. Music Assistant merges players it believes are the
+    # same physical device, and its last-resort rule is "same IP = same device"
+    # (controllers/players/protocol_linking.py). With host networking this panel
+    # shares the host's IP with any snapcast/AirPlay/Cast player running there,
+    # and your squeezelite players get absorbed into one of them -- they simply
+    # never appear as rooms of their own. Giving the container its own IP is the
+    # whole fix; several players inside one container are fine, MA refuses to
+    # merge two players of the same protocol.
+    #
+    # The cost: no broadcast discovery, so SERVER_IP below is required.
+    ports:
+      - "8082:8080"
 
     environment:
       # The image default, so it can be omitted; kept here for clarity.
       - ROLE=panel
-      - PORT=8080
-      # Seeds the "server" field of the Add-player form. Each player can still
-      # point somewhere else, and blank means "discover it on this subnet".
+      - PORT=8080                 # container-internal; published as 8082 above
+      # REQUIRED here: without host networking a player cannot discover the
+      # server by broadcast, so every player needs an explicit address. This
+      # seeds the Add-player form; each player can still point elsewhere.
       - SERVER_IP=192.168.1.50
       - SERVER_PORT=3483
       # Uncomment to require a login on every page and API call. Without it the

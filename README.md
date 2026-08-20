@@ -339,8 +339,12 @@ node to watch, and squeezelite reports device loss itself.
 
 ### Running several players on one host
 
-They can all live in this one container, on one IP. **Music Assistant identifies
-a slimproto player by its MAC and nothing else** — see
+Several players in **one** container is fine, and they show up as separate
+rooms. Two things decide that, and they work at different layers of Music
+Assistant.
+
+**1. Each player needs its own MAC.** At the protocol layer MA identifies a
+slimproto player by MAC alone — see
 [`aioslimproto/client.py`](https://github.com/music-assistant/aioslimproto/blob/main/aioslimproto/client.py):
 
 ```python
@@ -348,11 +352,38 @@ def player_id(self) -> str:
     """Return mac address of the player (used as player id)."""
 ```
 
-So players sharing one MAC collapse into a single entry that the instances fight
-over — the usual symptom of copying a compose file and leaving `MAC_ADDR`
-unchanged. Give each its own address and they appear as separate rooms. The
-panel does that for you (below), so no macvlan, no extra host IPs, and no
-per-player container are needed for this.
+Players sharing one MAC collapse into a single entry the instances fight over —
+the usual symptom of copying a compose file and leaving `MAC_ADDR` unchanged.
+The panel generates a unique one per player, so this is handled.
+
+**2. The container must not share an IP with another kind of player.** On top of
+the protocol layer, MA's player controller merges endpoints it believes are one
+physical device, and its last resort is
+[`protocol_linking.py`](https://github.com/music-assistant/server): *"Two players
+on the same IP are very likely the same physical device."* It then hides one
+inside the other as an alternate output protocol.
+
+This only fires **across protocols** — squeezelite with snapcast, AirPlay or
+Cast. Two squeezelite players never merge with each other; MA explicitly refuses
+(`Refusing to link …: parent already has an active squeezelite link`). But a
+panel using `network_mode: host` on a machine that also runs a snapclient shares
+that machine's IP, and its players get swallowed by the snapcast player — they
+never appear as rooms at all.
+
+**So don't run the panel with host networking.** A normal bridge network gives
+the container its own IP and the problem disappears; see the
+[compose example](docker-compose-panel-example.yaml). No macvlan, no extra host
+addresses, no container per player.
+
+Two details worth knowing:
+
+- **Discovery stops working**, because broadcast does not leave a bridge
+  container. Set the server address explicitly on every player (or via
+  `SERVER_IP`). Leaving it blank only works with host networking.
+- **If a player is already hidden**, MA has stored `protocol_parent_id` for it
+  and re-applies it on every restart — restarting MA will not clear it. Delete
+  that player in MA and let it re-register, or change its MAC in the panel,
+  which makes it a new player as far as MA is concerned.
 
 ### Every player gets its own MAC
 
