@@ -6,6 +6,12 @@ This repository provides a high-performance Squeezelite Docker container optimiz
 
 [![Build_Push_Scan](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml/badge.svg)](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/shuricksumy/home-audio-stack/main/docs/bitperfect-192.png" width="46%" alt="Music Assistant: input Tidal FLAC 192 kHz / 24 bits, output 192 kHz / 24 bits to the DX5">
+  <br><sub>A Tidal FLAC at 192 kHz / 24 bits reaching the DAC unchanged — and the
+  <a href="#check-hardware-clock-the-truth">kernel agrees</a>: <code>rate: 192000</code>, DAC clock 191998 Hz.</sub>
+</p>
+
 ## ✨ What you get
 
 |  | |
