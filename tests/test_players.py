@@ -114,6 +114,104 @@ def test_duplicate_names_are_rejected(supervisor):
         supervisor.create(dict(BASE, autostart=False))
 
 
+# ---- ALSA output mode -------------------------------------------------------
+
+
+def test_alsa_mode_addresses_the_device_directly():
+    argv = players.build_argv(
+        players.validate(dict(BASE, output_mode="alsa", alsa_device="hw:CARD=DX5,DEV=0"))
+    )
+    assert argv[1:3] == ["-o", "hw:CARD=DX5,DEV=0"]
+
+
+def test_pipewire_is_the_default_output():
+    argv = players.build_argv(players.validate(BASE))
+    assert argv[1:3] == ["-o", "pipewire"]
+
+
+def test_alsa_mode_does_not_steer_a_pipewire_node(supervisor):
+    player = supervisor.create(
+        dict(BASE, output_mode="alsa", alsa_device="default", autostart=False)
+    )
+    player.start()
+    assert running(player), list(player.logs)
+    assert wait_for(lambda: any("PIPEWIRE_NODE=" in l for l in player.logs))
+    # The fake echoes its environment: the node must not have been passed on.
+    assert any("PIPEWIRE_NODE=\n" in l or l.endswith("PIPEWIRE_NODE=") for l in player.logs), (
+        list(player.logs)
+    )
+
+
+def test_alsa_mode_is_not_watchdogged_by_the_sink(supervisor, fast):
+    fast.setattr(players, "sink_present", lambda node: False)
+    player = supervisor.create(
+        dict(BASE, output_mode="alsa", alsa_device="default", autostart=False)
+    )
+    player.start()
+    assert running(player), list(player.logs)
+    time.sleep(0.6)
+    assert player.state == "running", "an ALSA output has no sink to watch"
+
+
+def test_an_alsa_output_needs_a_device():
+    with pytest.raises(PlayerError):
+        players.validate(dict(BASE, output_mode="alsa", alsa_device=""))
+
+
+@pytest.mark.parametrize("bad", ["with space", "semi;colon", "pipe|d"])
+def test_bad_alsa_device_names_are_rejected(bad):
+    with pytest.raises(PlayerError):
+        players.validate(dict(BASE, output_mode="alsa", alsa_device=bad))
+
+
+def test_unknown_output_mode_is_rejected():
+    with pytest.raises(PlayerError):
+        players.validate(dict(BASE, output_mode="jack"))
+
+
+def test_alsa_devices_are_parsed_from_squeezelite_l(monkeypatch):
+    sample = """Output devices:
+  null                           - Discard all samples
+  default                        - Default ALSA device
+  hw:CARD=DX5,DEV=0              - Topping DX5, USB Audio
+  pipewire                       - PipeWire Sound Server
+"""
+
+    class Result:
+        stdout = sample
+        returncode = 0
+
+    monkeypatch.setattr(players.subprocess, "run", lambda *a, **k: Result())
+    monkeypatch.setattr(players.shutil, "which", lambda n: "/usr/bin/squeezelite")
+    devices = players.list_alsa_devices()
+    names = [d["device"] for d in devices]
+    assert "hw:CARD=DX5,DEV=0" in names and "default" in names
+    # Hardware first: that is what somebody bypassing PipeWire came for.
+    assert devices[0]["hardware"] is True
+    assert next(d for d in devices if d["device"] == "hw:CARD=DX5,DEV=0")["description"] == (
+        "Topping DX5, USB Audio"
+    )
+
+
+def test_the_alsa_listing_is_cached(monkeypatch):
+    calls = {"n": 0}
+
+    class Result:
+        stdout = "Output devices:\n  default - Default ALSA device\n"
+        returncode = 0
+
+    def counted(*a, **k):
+        calls["n"] += 1
+        return Result()
+
+    monkeypatch.setattr(players, "_alsa_cache", {"at": 0.0, "devices": []})
+    monkeypatch.setattr(players.subprocess, "run", counted)
+    monkeypatch.setattr(players.shutil, "which", lambda n: "/usr/bin/squeezelite")
+    for _ in range(5):
+        players.list_alsa_devices()
+    assert calls["n"] == 1, "squeezelite -l must not run on every request"
+
+
 # ---- MAC addresses ----------------------------------------------------------
 
 

@@ -38,7 +38,15 @@ services:
       - ./panel_config:/config
       - /run/user/1000/pipewire-0:/tmp/pipewire-0
       - /dev/shm:/dev/shm
-      # Optional: direct ALSA access as a fallback
+
+
+
+    # For the ALSA output mode (bypassing PipeWire) the sound hardware must be
+    # passed as DEVICES, not as a volume: "-v /dev/snd:/dev/snd" maps the nodes
+    # but the device cgroup still refuses to open them, so squeezelite reports
+    # "No such device" and enumeration lists only conversion plugins.
+    # Not needed at all if you only use PipeWire outputs.
+    devices:
       - /dev/snd:/dev/snd
 
     # Real-time scheduling is a container-level property and squeezelite is the
@@ -61,6 +69,10 @@ services:
     # above is not 1000, set it here -- and chown ./panel_config to match.
     # user: "1000:1000"
 
+# Several players in this one container is fine: Music Assistant identifies a
+# slimproto player by its MAC, and the panel gives each player its own. They show
+# up as separate rooms without macvlan or an IP per player.
+#
 # Verify a player is really bit-perfect once it is playing:
 #   cat /proc/asound/card*/stream0
 # Status should be Running and "Momentary freq" should sit at the track's rate

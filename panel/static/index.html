@@ -28,65 +28,104 @@
     font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   header {
-    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
-    padding: 1rem 1.25rem; border-bottom: 1px solid var(--line); background: var(--card);
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    padding: .9rem 1.25rem; border-bottom: 1px solid var(--line); background: var(--card);
   }
-  header h1 { font-size: 1.1rem; margin: 0; font-weight: 650; }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 650; }
   header .spacer { flex: 1; }
-  main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+  main { max-width: 1200px; margin: 0 auto; padding: 1.25rem; }
   .card {
     background: var(--card); border: 1px solid var(--line); border-radius: 10px;
     box-shadow: var(--shadow); margin-bottom: 1rem; overflow: hidden;
   }
   .card > h2 {
-    margin: 0; padding: .75rem 1rem; font-size: .95rem; font-weight: 650;
+    margin: 0; padding: .7rem 1rem; font-size: .95rem; font-weight: 650;
     border-bottom: 1px solid var(--line);
   }
-  .card > .body { padding: 1rem; }
   button {
-    font: inherit; padding: .35rem .7rem; border-radius: 7px; cursor: pointer;
+    font: inherit; padding: .3rem .65rem; border-radius: 7px; cursor: pointer;
     border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+    white-space: nowrap;
   }
   button:hover { border-color: var(--accent); }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.danger:hover { border-color: var(--bad); color: var(--bad); }
+  button.danger { color: var(--bad); }
+  button.danger:hover { border-color: var(--bad); background: var(--bad); color: #fff; }
+  button.small { padding: .2rem .5rem; font-size: .85rem; }
   button[disabled] { opacity: .5; cursor: not-allowed; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-  tr:last-child td { border-bottom: 0; }
+
+  /* Fixed layout: long node names must not push the action buttons into a
+     five-high stack, which is what an auto-width table did. */
   .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 860px; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  col.c-name    { width: 18%; }
+  col.c-output  { width: 24%; }
+  /* Wide enough for "192.168.111.50:3483" -- clipping the port made the column
+     actively misleading. */
+  col.c-server  { width: 17%; }
+  col.c-state   { width: 12%; }
+  col.c-uptime  { width: 8%; }
+  col.c-restart { width: 7%; }
+  col.c-actions { width: 14%; }
+  td.nowrap, th.nowrap { white-space: nowrap; }
+  .truncate {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .actions { display: flex; gap: .3rem; justify-content: flex-end; }
   .chip {
-    display: inline-block; padding: .1rem .5rem; border-radius: 999px;
-    background: var(--chip); font-size: .8rem; white-space: nowrap;
+    display: inline-block; padding: .05rem .45rem; border-radius: 999px;
+    background: var(--chip); font-size: .75rem; white-space: nowrap;
   }
   .state-running { color: var(--ok); font-weight: 600; }
   .state-stopped { color: var(--muted); }
   .state-backoff, .state-waiting, .state-starting { color: var(--warn); }
   .state-failed { color: var(--bad); font-weight: 600; }
   .muted { color: var(--muted); }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85em; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82em; }
   .warn {
     border-left: 3px solid var(--warn); background: var(--chip);
-    padding: .6rem .8rem; border-radius: 0 7px 7px 0; margin-bottom: .6rem;
+    padding: .55rem .8rem; border-radius: 0 7px 7px 0; margin-bottom: .6rem;
   }
-  form.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; }
-  label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: .2rem; }
+  .empty { padding: 1.5rem 1rem; text-align: center; color: var(--muted); }
+
+  /* ---- dialogs ---- */
+  dialog {
+    border: 1px solid var(--line); border-radius: 12px; padding: 0;
+    background: var(--card); color: var(--ink); max-width: min(940px, 94vw);
+    width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog .head {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .85rem 1rem; border-bottom: 1px solid var(--line); font-weight: 650;
+  }
+  dialog .head .spacer { flex: 1; }
+  dialog .body { padding: 1rem; max-height: 70vh; overflow: auto; }
+  dialog .foot {
+    display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+    padding: .8rem 1rem; border-top: 1px solid var(--line);
+  }
+  /* The class sits on a div inside the form, not on the form itself -- a
+     "form.grid" selector silently left every field on its own row. */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem 1rem; }
+  label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .2rem; }
   input, select {
     font: inherit; width: 100%; padding: .35rem .5rem; border-radius: 7px;
     border: 1px solid var(--line); background: var(--bg); color: var(--ink);
   }
-  .row-actions { display: flex; gap: .35rem; flex-wrap: wrap; }
-  .full { grid-column: 1 / -1; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  pre.log {
-    margin: 0; padding: .8rem; max-height: 22rem; overflow: auto; background: var(--bg);
-    border-top: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace;
-    font-size: .8rem; white-space: pre-wrap; word-break: break-word;
-  }
+  .full { grid-column: 1 / -1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
   .checkline { display: flex; align-items: center; gap: .4rem; }
   .checkline input { width: auto; }
+  .checkline label { margin: 0; color: var(--ink); font-size: .9rem; }
+  pre.log {
+    margin: 0; padding: .85rem; background: var(--bg); border-radius: 8px;
+    font-family: ui-monospace, Menlo, monospace; font-size: .8rem;
+    white-space: pre-wrap; word-break: break-word; min-height: 12rem;
+  }
   .err { color: var(--bad); }
-  .hidden { display: none; }
 </style>
 </head>
 <body>
@@ -94,6 +133,7 @@
   <h1>🎵 Squeezelite Players</h1>
   <span id="summary" class="muted"></span>
   <span class="spacer"></span>
+  <button id="add" class="primary">+ Add player</button>
   <button id="theme">◐ Theme</button>
   <button id="refresh">↻ Refresh</button>
 </header>
@@ -105,28 +145,42 @@
     <h2>Players</h2>
     <div class="scroll">
       <table>
+        <colgroup>
+          <col class="c-name"><col class="c-output"><col class="c-server"><col class="c-state">
+          <col class="c-uptime"><col class="c-restart"><col class="c-actions">
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th><th>Output</th><th>Server</th><th>State</th>
-            <th>Uptime</th><th>Restarts</th><th>Actions</th>
+            <th class="nowrap">Uptime</th><th class="nowrap">Restarts</th>
+            <th style="text-align:right">Actions</th>
           </tr>
         </thead>
         <tbody id="players"></tbody>
       </table>
     </div>
+    <div id="emptyState" class="empty" hidden>No players yet — press <strong>Add player</strong>.</div>
   </div>
+</main>
 
-  <div class="card">
-    <h2 id="formTitle">Add a player</h2>
+<!-- Edit / add ------------------------------------------------------------->
+<dialog id="editDialog">
+  <div class="head"><span id="formTitle">Add a player</span><span class="spacer"></span>
+    <button type="button" id="editClose" class="small">✕</button></div>
+  <form id="form" autocomplete="off">
     <div class="body">
-      <form class="grid" id="form" autocomplete="off">
+      <div class="grid">
         <div>
           <label for="f-name">Name (shown on the server)</label>
           <input id="f-name" name="name" required>
         </div>
         <div>
-          <label for="f-node">Output sink</label>
-          <select id="f-node" name="node"></select>
+          <label for="f-output">Output</label>
+          <select id="f-output"></select>
+        </div>
+        <div id="customWrap" hidden>
+          <label for="f-alsa_custom">ALSA device name</label>
+          <input id="f-alsa_custom" class="mono" placeholder="hw:CARD=DX5,DEV=0">
         </div>
         <div>
           <label for="f-server">Server (blank = auto-discover)</label>
@@ -159,8 +213,8 @@
         <div>
           <label for="f-alsa_mmap">mmap (-a m)</label>
           <select id="f-alsa_mmap" name="alsa_mmap">
-            <option value="0">0 - off</option>
-            <option value="1">1 - on</option>
+            <option value="0">0 — off</option>
+            <option value="1">1 — on</option>
           </select>
         </div>
         <div>
@@ -195,22 +249,25 @@
             <input type="checkbox" id="f-autostart" name="autostart"><label for="f-autostart">Start automatically</label>
           </span>
         </div>
-        <div class="full">
-          <button class="primary" id="submit" type="submit">Add player</button>
-          <button type="button" id="cancel" class="hidden">Cancel</button>
-          <span id="formError" class="err"></span>
-        </div>
-      </form>
+      </div>
     </div>
-  </div>
+    <div class="foot">
+      <button class="primary" id="submit" type="submit">Add player</button>
+      <button type="button" id="cancel">Cancel</button>
+      <span class="spacer"></span>
+      <span id="formError" class="err"></span>
+      <button type="button" id="deletePlayer" class="danger" hidden>Delete player</button>
+    </div>
+  </form>
+</dialog>
 
-  <div class="card hidden" id="logCard">
-    <h2><span id="logTitle">Log</span>
-      <button id="logClose" style="float:right">Close</button>
-    </h2>
-    <pre class="log" id="log"></pre>
-  </div>
-</main>
+<!-- Log -------------------------------------------------------------------->
+<dialog id="logDialog">
+  <div class="head"><span id="logTitle">Log</span><span class="spacer"></span>
+    <button type="button" id="logClose" class="small">✕</button></div>
+  <div class="body"><pre class="log" id="log"></pre></div>
+  <div class="foot"><span class="muted">Refreshes while open.</span></div>
+</dialog>
 
 <script>
 (function () {
@@ -224,7 +281,9 @@
   const api = (path) => BASE + String(path).replace(/^\//, "");
 
   const $ = (id) => document.getElementById(id);
-  const state = { players: [], sinks: [], config: null, editing: null, logFor: null };
+  const state = {
+    players: [], sinks: [], alsa: [], config: null, editing: null, logFor: null,
+  };
 
   async function call(path, options) {
     const res = await fetch(api(path), options);
@@ -238,71 +297,116 @@
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   function uptime(seconds) {
-    if (!seconds) return "-";
+    if (!seconds) return "—";
     const s = Math.floor(seconds);
     if (s < 60) return s + "s";
     if (s < 3600) return Math.floor(s / 60) + "m " + (s % 60) + "s";
     return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
   }
 
-  function renderWarnings() {
-    const box = $("warnings");
-    const list = (state.config && state.config.warnings) || [];
-    box.innerHTML = list.map((w) => '<div class="warn">⚠️ ' + esc(w) + "</div>").join("");
+  // The output picker carries both the mode and the target in one value, so a
+  // player is bound with a single choice: "pw:<node>" or "alsa:<device>".
+  const CUSTOM = "__custom__";
+
+  const outputValue = (p) =>
+    p.output_mode === "alsa" ? "alsa:" + (p.alsa_device || "default") : "pw:" + (p.node || "");
+
+  function outputFields(value) {
+    if (value.startsWith("alsa:")) {
+      const device = value.slice(5);
+      return {
+        output_mode: "alsa",
+        alsa_device: device === CUSTOM ? $("f-alsa_custom").value.trim() : device,
+        node: "",
+      };
+    }
+    return { output_mode: "pipewire", node: value.slice(3), alsa_device: "default" };
   }
 
-  function renderSinks() {
-    const select = $("f-node");
-    const current = select.value;
-    const options = ['<option value="">(default sink)</option>'];
+  function syncCustomField() {
+    $("customWrap").hidden = $("f-output").value !== "alsa:" + CUSTOM;
+  }
+
+  function describeOutput(p) {
+    if (p.output_mode === "alsa") return "ALSA · " + (p.alsa_device || "default");
+    return p.node || "default sink";
+  }
+
+  function renderWarnings() {
+    const list = (state.config && state.config.warnings) || [];
+    $("warnings").innerHTML = list.map((w) => '<div class="warn">⚠️ ' + esc(w) + "</div>").join("");
+  }
+
+  function renderOutputOptions(selected) {
+    const select = $("f-output");
+    const parts = ['<optgroup label="PipeWire"><option value="pw:">Default sink</option>'];
     for (const sink of state.sinks) {
-      options.push('<option value="' + esc(sink.node) + '">' +
-        esc(sink.description) + " — " + esc(sink.node) + "</option>");
+      parts.push('<option value="pw:' + esc(sink.node) + '">' + esc(sink.description) + "</option>");
     }
-    // Keep a node that is configured but not currently present selectable.
-    if (current && !state.sinks.some((s) => s.node === current)) {
-      options.push('<option value="' + esc(current) + '">' + esc(current) + " (absent)</option>");
+    parts.push("</optgroup>");
+    parts.push('<optgroup label="ALSA (bypasses PipeWire)">');
+    for (const dev of state.alsa) {
+      parts.push('<option value="alsa:' + esc(dev.device) + '">' +
+        esc(dev.device) + (dev.description && dev.description !== dev.device
+          ? " — " + esc(dev.description) : "") + "</option>");
     }
-    select.innerHTML = options.join("");
-    select.value = current;
+    // Enumeration needs the sound devices passed through; without that the list
+    // is empty, so typing a device by hand has to stay possible.
+    parts.push('<option value="alsa:' + CUSTOM + '">Custom ALSA device…</option>');
+    parts.push("</optgroup>");
+    select.innerHTML = parts.join("");
+    if (selected) {
+      // A configured output that is not present right now must stay selectable,
+      // or opening Edit would silently rebind the player to something else.
+      if (!Array.prototype.some.call(select.options, (o) => o.value === selected)) {
+        if (selected.startsWith("alsa:")) {
+          // Not in the enumerated list: keep it, as a custom device.
+          $("f-alsa_custom").value = selected.slice(5);
+          selected = "alsa:" + CUSTOM;
+        } else {
+          const opt = document.createElement("option");
+          opt.value = selected;
+          opt.textContent = selected.replace(/^pw:/, "") + " (not present)";
+          select.appendChild(opt);
+        }
+      }
+      select.value = selected;
+    }
   }
 
   function renderPlayers() {
     const body = $("players");
-    if (!state.players.length) {
-      body.innerHTML = '<tr><td colspan="7" class="muted">No players yet. Add one below.</td></tr>';
-    } else {
-      body.innerHTML = state.players.map((p) => {
-        const nodeLabel = p.node
-          ? esc(p.node) + (p.node_present === false ? ' <span class="chip">absent</span>' : "")
-          : '<span class="muted">default sink</span>';
-        const server = p.server
-          ? esc(p.server) + ":" + esc(p.port)
-          : '<span class="muted">auto-discover</span>';
-        return "<tr>" +
-          "<td><strong>" + esc(p.name) + "</strong><br>" +
-            '<span class="mono muted">' + esc(p.mac) + "</span></td>" +
-          '<td class="mono">' + nodeLabel + "</td>" +
-          "<td>" + server + "</td>" +
-          '<td><span class="state-' + esc(p.state) + '">' + esc(p.state) + "</span>" +
-            (p.detail ? '<br><span class="muted">' + esc(p.detail) + "</span>" : "") + "</td>" +
-          "<td>" + uptime(p.uptime) + "</td>" +
-          "<td>" + esc(p.restarts) + "</td>" +
-          '<td><div class="row-actions">' +
-            (p.running
-              ? '<button data-act="stop" data-id="' + p.id + '">Stop</button>'
-              : '<button data-act="start" data-id="' + p.id + '">Start</button>') +
-            '<button data-act="restart" data-id="' + p.id + '">Restart</button>' +
-            '<button data-act="logs" data-id="' + p.id + '">Log</button>' +
-            '<button data-act="edit" data-id="' + p.id + '">Edit</button>' +
-            '<button class="danger" data-act="delete" data-id="' + p.id + '">Delete</button>' +
-          "</div></td></tr>";
-      }).join("");
-    }
+    $("emptyState").hidden = state.players.length > 0;
+    body.innerHTML = state.players.map((p) => {
+      const out = describeOutput(p);
+      const absent = p.node_present === false
+        ? ' <span class="chip">absent</span>' : "";
+      const server = p.server
+        ? esc(p.server) + ":" + esc(p.port)
+        : '<span class="muted">auto-discover</span>';
+      return "<tr>" +
+        '<td><strong class="truncate" title="' + esc(p.name) + '">' + esc(p.name) + "</strong>" +
+          '<span class="mono muted truncate">' + esc(p.mac) + "</span></td>" +
+        '<td><span class="mono truncate" title="' + esc(out) + '">' + esc(out) + "</span>" + absent + "</td>" +
+        '<td class="nowrap">' + server + "</td>" +
+        '<td><span class="state-' + esc(p.state) + '">' + esc(p.state) + "</span>" +
+          (p.detail ? '<br><span class="muted truncate" title="' + esc(p.detail) + '">' +
+            esc(p.detail) + "</span>" : "") + "</td>" +
+        '<td class="nowrap">' + uptime(p.uptime) + "</td>" +
+        '<td class="nowrap">' + esc(p.restarts) + "</td>" +
+        '<td><div class="actions">' +
+          (p.running
+            ? '<button class="small" data-act="stop" data-id="' + p.id + '">Stop</button>'
+            : '<button class="small" data-act="start" data-id="' + p.id + '">Start</button>') +
+          '<button class="small" data-act="restart" data-id="' + p.id + '">Restart</button>' +
+          '<button class="small" data-act="logs" data-id="' + p.id + '">Log</button>' +
+          '<button class="small" data-act="edit" data-id="' + p.id + '">Edit</button>' +
+        "</div></td></tr>";
+    }).join("");
+
     const running = state.players.filter((p) => p.running).length;
     $("summary").textContent = state.players.length
-      ? running + " of " + state.players.length + " running"
-      : "";
+      ? running + " of " + state.players.length + " running" : "";
   }
 
   function fillForm(cfg) {
@@ -316,35 +420,36 @@
   }
 
   function readForm() {
-    const form = $("form");
     const out = {};
-    for (const field of form.elements) {
+    for (const field of $("form").elements) {
       if (!field.name) continue;
       out[field.name] = field.type === "checkbox" ? field.checked : field.value;
     }
-    return out;
+    return Object.assign(out, outputFields($("f-output").value));
   }
 
-  function startEdit(player) {
-    state.editing = player.id;
-    renderSinks();
-    fillForm(player);
-    $("f-node").value = player.node || "";
-    $("formTitle").textContent = "Edit " + player.name;
-    $("submit").textContent = "Save changes";
-    $("cancel").classList.remove("hidden");
-    $("formTitle").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
-  function resetForm() {
-    state.editing = null;
+  function openEdit(player) {
+    state.editing = player ? player.id : null;
+    $("formError").textContent = "";
     $("form").reset();
     fillForm(state.config ? state.config.defaults : {});
-    $("f-mac").value = "";
-    $("formTitle").textContent = "Add a player";
-    $("submit").textContent = "Add player";
-    $("cancel").classList.add("hidden");
-    $("formError").textContent = "";
+    if (player) {
+      fillForm(player);
+      renderOutputOptions(outputValue(player));
+      syncCustomField();
+      $("formTitle").textContent = "Edit " + player.name;
+      $("submit").textContent = "Save changes";
+      $("deletePlayer").hidden = false;
+    } else {
+      $("f-mac").value = "";
+      renderOutputOptions(null);
+      $("f-alsa_custom").value = "";
+      syncCustomField();
+      $("formTitle").textContent = "Add a player";
+      $("submit").textContent = "Add player";
+      $("deletePlayer").hidden = true;
+    }
+    $("editDialog").showModal();
   }
 
   async function refresh() {
@@ -353,7 +458,6 @@
       state.players = players.players || [];
       state.sinks = sinks.sinks || [];
       renderPlayers();
-      renderSinks();
       if (state.logFor) loadLog(state.logFor);
     } catch (err) {
       $("summary").innerHTML = '<span class="err">' + esc(err.message) + "</span>";
@@ -368,7 +472,6 @@
       const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
       pre.textContent = (data.lines || []).join("\n") || "(nothing yet)";
       if (atBottom) pre.scrollTop = pre.scrollHeight;
-      $("logCard").classList.remove("hidden");
     } catch (err) {
       $("log").textContent = err.message;
     }
@@ -380,16 +483,15 @@
     const id = button.dataset.id;
     const act = button.dataset.act;
     const player = state.players.find((p) => p.id === id);
-    if (act === "edit") return startEdit(player);
-    if (act === "logs") { state.logFor = id; return loadLog(id); }
-    if (act === "delete") {
-      if (!window.confirm("Delete " + (player ? player.name : "this player") + "?")) return;
+    if (act === "edit") return openEdit(player);
+    if (act === "logs") {
+      state.logFor = id;
+      $("logDialog").showModal();
+      return loadLog(id);
     }
     button.disabled = true;
     try {
-      const data = act === "delete"
-        ? await call("api/players/" + id, { method: "DELETE" })
-        : await call("api/players/" + id + "/" + act, { method: "POST" });
+      const data = await call("api/players/" + id + "/" + act, { method: "POST" });
       state.players = data.players || state.players;
       renderPlayers();
     } catch (err) {
@@ -405,21 +507,16 @@
     $("formError").textContent = "";
     $("submit").disabled = true;
     const payload = readForm();
+    const path = state.editing ? "api/players/" + state.editing : "api/players";
     try {
-      const data = state.editing
-        ? await call("api/players/" + state.editing, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          })
-        : await call("api/players", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+      const data = await call(path, {
+        method: state.editing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       state.players = data.players || state.players;
-      resetForm();
       renderPlayers();
+      $("editDialog").close();
     } catch (err) {
       $("formError").textContent = err.message;
     } finally {
@@ -427,12 +524,33 @@
     }
   });
 
-  $("cancel").addEventListener("click", resetForm);
-  $("refresh").addEventListener("click", refresh);
-  $("logClose").addEventListener("click", () => {
-    state.logFor = null;
-    $("logCard").classList.add("hidden");
+  $("deletePlayer").addEventListener("click", async () => {
+    const player = state.players.find((p) => p.id === state.editing);
+    if (!player || !window.confirm("Delete " + player.name + "?")) return;
+    try {
+      const data = await call("api/players/" + state.editing, { method: "DELETE" });
+      state.players = data.players || [];
+      renderPlayers();
+      $("editDialog").close();
+    } catch (err) {
+      $("formError").textContent = err.message;
+    }
   });
+
+  $("f-output").addEventListener("change", syncCustomField);
+  $("add").addEventListener("click", () => openEdit(null));
+  $("cancel").addEventListener("click", () => $("editDialog").close());
+  $("editClose").addEventListener("click", () => $("editDialog").close());
+  $("refresh").addEventListener("click", refresh);
+  $("logClose").addEventListener("click", () => $("logDialog").close());
+  $("logDialog").addEventListener("close", () => { state.logFor = null; });
+
+  // Click outside a dialog closes it, matching what the backdrop implies.
+  for (const id of ["editDialog", "logDialog"]) {
+    $(id).addEventListener("click", (event) => {
+      if (event.target === $(id)) $(id).close();
+    });
+  }
 
   // Three states: system (no attribute, follows prefers-color-scheme), light, dark.
   $("theme").addEventListener("click", () => {
@@ -450,15 +568,16 @@
   (async function boot() {
     try {
       state.config = await call("api/config");
-      const select = $("f-alsa_format");
-      select.innerHTML = (state.config.formats || []).map((f) =>
+      $("f-alsa_format").innerHTML = (state.config.formats || []).map((f) =>
         '<option value="' + esc(f) + '">' + (f ? esc(f) + "-bit" : "device default") + "</option>"
       ).join("");
       renderWarnings();
-      resetForm();
     } catch (err) {
       $("warnings").innerHTML = '<div class="warn err">' + esc(err.message) + "</div>";
     }
+    try {
+      state.alsa = (await call("api/alsa-devices")).devices || [];
+    } catch (err) { state.alsa = []; }
     await refresh();
     window.setInterval(refresh, 5000);
   })();

@@ -133,6 +133,16 @@ def environment_warnings():
             % (config_dir, os.getuid())
         )
 
+    devices = players_mod.list_alsa_devices()
+    if devices and not any(d["hardware"] for d in devices):
+        warnings.append(
+            "No ALSA hardware devices are visible, only conversion plugins. The "
+            "ALSA output mode needs the sound devices passed through as devices, "
+            "not as a volume: 'devices: [/dev/snd:/dev/snd]' in compose. "
+            "(-v /dev/snd mounts the nodes but the device cgroup still blocks "
+            "opening them.) PipeWire output is unaffected."
+        )
+
     if not shutil.which(players_mod.SQUEEZELITE):
         warnings.append(
             "squeezelite was not found on PATH (%s)." % players_mod.SQUEEZELITE
@@ -168,6 +178,13 @@ def api_players():
 def api_sinks():
     """PipeWire sinks available right now -- what a player can be bound to."""
     return jsonify(sinks=players_mod.list_sinks())
+
+
+@app.get("/api/alsa-devices")
+def api_alsa_devices():
+    """ALSA outputs squeezelite can address directly, for hosts without a
+    working PipeWire session."""
+    return jsonify(devices=players_mod.list_alsa_devices())
 
 
 @app.post("/api/players")

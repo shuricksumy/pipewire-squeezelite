@@ -76,6 +76,14 @@ def test_sinks_come_from_pipewire(client):
     assert body["sinks"][0]["node"] == "alsa_output.dx5"
 
 
+def test_alsa_devices_are_offered(client, app_module):
+    app_module.players_mod.list_alsa_devices = lambda: [
+        {"device": "hw:CARD=DX5,DEV=0", "description": "Topping DX5", "hardware": True}
+    ]
+    body = client.get("/api/alsa-devices").get_json()
+    assert body["devices"][0]["device"] == "hw:CARD=DX5,DEV=0"
+
+
 def test_config_exposes_defaults_and_formats(client):
     body = client.get("/api/config").get_json()
     assert body["auth"] is False
@@ -90,6 +98,28 @@ def test_the_page_never_hardcodes_absolute_api_paths():
     assert 'document.baseURI' in page
     for bad in ('fetch("/api', "fetch('/api", 'href="/api', 'call("/api'):
         assert bad not in page, "%s escapes an Ingress prefix" % bad
+
+
+def test_the_edit_form_and_log_live_in_dialogs():
+    """They must not sit open on the page: the form belongs to Add/Edit and the
+    log to the Log button. A <dialog> without the open attribute is hidden."""
+    page = open(os.path.join(ROOT, "panel", "static", "index.html")).read()
+    assert '<dialog id="editDialog">' in page
+    assert '<dialog id="logDialog">' in page
+    assert "<dialog id=\"editDialog\" open" not in page
+    assert "showModal()" in page
+    # Delete belongs in the edit dialog, not as a fifth button on every row.
+    assert 'id="deletePlayer"' in page
+    form_start = page.index('<dialog id="editDialog">')
+    assert page.index('<form id="form"') > form_start
+
+
+def test_the_table_does_not_carry_a_delete_button():
+    page = open(os.path.join(ROOT, "panel", "static", "index.html")).read()
+    row_js = page[page.index("function renderPlayers"):page.index("function fillForm")]
+    assert 'data-act="delete"' not in row_js
+    for act in ("start", "stop", "restart", "logs", "edit"):
+        assert 'data-act="%s"' % act in row_js
 
 
 # ---- CRUD -------------------------------------------------------------------

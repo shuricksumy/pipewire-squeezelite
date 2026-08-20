@@ -10,6 +10,14 @@ import signal
 import sys
 import time
 
+if "-l" in sys.argv[1:]:
+    # Device listing: the real binary prints and exits immediately.
+    print("Output devices:")
+    print("  null                           - Discard all samples")
+    print("  default                        - Default ALSA device")
+    print("  hw:CARD=FAKE,DEV=0             - Fake DAC, USB Audio")
+    sys.exit(0)
+
 print("squeezelite args: %s" % " ".join(sys.argv[1:]), flush=True)
 print("PIPEWIRE_NODE=%s" % os.environ.get("PIPEWIRE_NODE", ""), flush=True)
 print("PIPEWIRE_LATENCY=%s" % os.environ.get("PIPEWIRE_LATENCY", ""), flush=True)

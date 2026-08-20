@@ -64,6 +64,9 @@ NODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.:_-]{0,255}$")
 MAC_RE = re.compile(r"^[0-9A-F]{2}(?::[0-9A-F]{2}){5}$")
 MIXER_RE = re.compile(r"^[A-Za-z0-9 _.\-]{1,32}$")
+# ALSA PCM names as squeezelite -l prints them: default, sysdefault:CARD=DX5,
+# hw:CARD=DX5,DEV=0, plughw:0,0 ...
+ALSA_DEVICE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_:,=.\-]{0,127}$")
 LATENCY_RE = re.compile(r"^\d{1,7}/\d{1,7}$")
 
 # squeezelite -a <b>:<p>:<f>:<m>; f is the sample format it asks ALSA for.
@@ -92,7 +95,12 @@ if ":" in SERVER_HOST and "//" not in SERVER_HOST:
 
 DEFAULTS = {
     "name": "",
+    # "pipewire" plays into the host's PipeWire session and binds to one sink.
+    # "alsa" talks to an ALSA device directly, which is the way out when
+    # PipeWire is broken, absent, or simply not what you want on this host.
+    "output_mode": "pipewire",
     "node": "",
+    "alsa_device": "default",
     # Blank means "generate one". The server tells players apart by MAC, so two
     # players sharing one would fight over a single slot in its player list.
     "mac": "",
@@ -191,6 +199,60 @@ def list_sinks():
     return sinks
 
 
+_alsa_cache = {"at": 0.0, "devices": []}
+ALSA_CACHE_SECONDS = 30.0
+
+
+def list_alsa_devices(max_age=ALSA_CACHE_SECONDS):
+    """ALSA outputs, straight from `squeezelite -l`.
+
+    This is the escape hatch for a host where PipeWire is broken or was never
+    set up: squeezelite can address the hardware itself. Best effort -- if the
+    binary is missing the panel simply offers no ALSA choices.
+    """
+    # Cached: the device list changes only when hardware is plugged in, while
+    # the panel polls its config every few seconds and this costs a subprocess
+    # that can take seconds to answer.
+    if max_age and time.time() - _alsa_cache["at"] < max_age:
+        return _alsa_cache["devices"]
+
+    if not shutil.which(SQUEEZELITE) and not os.path.exists(SQUEEZELITE):
+        return []
+    try:
+        raw = subprocess.run(
+            [SQUEEZELITE, "-l"], capture_output=True, text=True, timeout=15,
+            env=_pw_env(),
+        )
+    except (OSError, subprocess.SubprocessError):
+        _alsa_cache["at"] = time.time()
+        _alsa_cache["devices"] = []
+        return []
+
+    devices = []
+    for line in (raw.stdout or "").splitlines():
+        if not line.startswith("  ") or line.strip().endswith(":"):
+            continue
+        parts = line.strip().split(" - ", 1)
+        name = parts[0].strip()
+        if not name or not ALSA_DEVICE_RE.match(name):
+            continue
+        devices.append(
+            {
+                "device": name,
+                "description": parts[1].strip() if len(parts) > 1 else name,
+                # Entries that address hardware rather than a conversion plugin.
+                # Shown first because they are what somebody bypassing PipeWire
+                # is looking for.
+                "hardware": name.startswith(("hw:", "plughw:", "sysdefault", "front:"))
+                or name == "default",
+            }
+        )
+    devices.sort(key=lambda d: (not d["hardware"], d["device"]))
+    _alsa_cache["at"] = time.time()
+    _alsa_cache["devices"] = devices
+    return devices
+
+
 def sink_present(node):
     return any(s["node"] == node for s in list_sinks())
 
@@ -256,9 +318,20 @@ def validate(config, existing_names=(), existing_macs=()):
             "by MAC, so they must be unique" % clean["mac"]
         )
 
+    clean["output_mode"] = str(clean["output_mode"]).strip() or "pipewire"
+    if clean["output_mode"] not in ("pipewire", "alsa"):
+        raise PlayerError("output mode must be 'pipewire' or 'alsa'")
+
     clean["node"] = str(clean["node"]).strip()
     if clean["node"] and not NODE_RE.match(clean["node"]):
         raise PlayerError("invalid PipeWire node name")
+
+    clean["alsa_device"] = str(clean["alsa_device"]).strip()
+    if clean["output_mode"] == "alsa":
+        if not clean["alsa_device"]:
+            raise PlayerError("an ALSA output needs a device name")
+        if not ALSA_DEVICE_RE.match(clean["alsa_device"]):
+            raise PlayerError("invalid ALSA device name")
 
     clean["server"] = str(clean["server"]).strip()
     if clean["server"] and not HOST_RE.match(clean["server"]):
@@ -317,7 +390,10 @@ def build_argv(cfg):
     A list, never a shell string -- which is why a name may contain spaces,
     quotes or semicolons without any of it meaning anything.
     """
-    args = [SQUEEZELITE, "-o", "pipewire", "-n", cfg["name"]]
+    device = (
+        cfg["alsa_device"] if cfg.get("output_mode") == "alsa" else "pipewire"
+    )
+    args = [SQUEEZELITE, "-o", device, "-n", cfg["name"]]
 
     if cfg.get("server"):
         args += ["-s", "%s:%d" % (cfg["server"], cfg["port"])]
@@ -495,7 +571,11 @@ class Player:
                 delay = min(delay * 2, RETRY_MAX)
                 continue
 
-            if self.config.get("volume") is not None and self.config.get("node"):
+            if (
+                self.config.get("volume") is not None
+                and self.config.get("node")
+                and self._pipewire_output()
+            ):
                 set_sink_volume(self.config["node"], self.config["volume"])
 
             # The output pump has to run alongside the watchdog, not instead of
@@ -536,8 +616,12 @@ class Player:
                 self.detail = ""
 
     def _watch(self, proc):
-        """Wait for the child to exit, restarting it if its sink goes away."""
-        node = self.config.get("node")
+        """Wait for the child to exit, restarting it if its sink goes away.
+
+        Only for PipeWire outputs: an ALSA device is not in the graph, so there
+        is nothing to poll and squeezelite reports device loss itself.
+        """
+        node = self.config.get("node") if self._pipewire_output() else None
         absent_since = None
         while proc.poll() is None:
             if not self.desired:
@@ -573,9 +657,12 @@ class Player:
         self._wake.clear()
         return not self.desired
 
+    def _pipewire_output(self):
+        return self.config.get("output_mode", "pipewire") != "alsa"
+
     def _prepare(self):
         """Wait for the bound sink, so we do not spawn into a missing device."""
-        node = self.config.get("node")
+        node = self.config.get("node") if self._pipewire_output() else None
         if not node:
             return True, ""
 
@@ -606,10 +693,13 @@ class Player:
     def _spawn(self):
         cfg = self.config
         env = _pw_env()
-        if cfg.get("node"):
-            env["PIPEWIRE_NODE"] = cfg["node"]
-        if cfg.get("pipewire_latency"):
-            env["PIPEWIRE_LATENCY"] = cfg["pipewire_latency"]
+        # Only meaningful when playing through PipeWire; an ALSA output goes
+        # straight to the device and must not be steered at a graph node.
+        if cfg.get("output_mode") != "alsa":
+            if cfg.get("node"):
+                env["PIPEWIRE_NODE"] = cfg["node"]
+            if cfg.get("pipewire_latency"):
+                env["PIPEWIRE_LATENCY"] = cfg["pipewire_latency"]
 
         args = build_argv(cfg)
         self.log("launching: %s" % " ".join(args))
@@ -705,7 +795,9 @@ class Supervisor:
         for player in players:
             status = player.status()
             status["node_present"] = (
-                status["node"] in sinks if status["node"] else None
+                status["node"] in sinks
+                if status["node"] and status.get("output_mode") != "alsa"
+                else None
             )
             out.append(status)
         out.sort(key=lambda p: p["name"].lower())

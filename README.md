@@ -290,6 +290,53 @@ What it does:
   switch is not mistaken for a failure.
 - **Tails each player's log** in the browser.
 
+### Output: PipeWire or straight to ALSA
+
+The Output dropdown offers both:
+
+- **PipeWire** — the sinks `pw-dump` reports, which is the bit-perfect path and
+  the reason this image exists. Each player binds to one sink through its own
+  `PIPEWIRE_NODE`.
+- **ALSA** — the devices `squeezelite -l` reports (`hw:CARD=DX5,DEV=0`,
+  `default`, …), addressed directly with `-o`. This is the way out when PipeWire
+  is broken, not set up, or simply not wanted on that host: squeezelite talks to
+  the hardware itself and nothing needs a running PipeWire session.
+
+For the ALSA path the sound hardware must be passed as **devices**, not as a
+volume:
+
+```yaml
+devices:
+  - /dev/snd:/dev/snd      # not  volumes: - /dev/snd:/dev/snd
+```
+
+`-v /dev/snd:/dev/snd` maps the device nodes but leaves the container's device
+cgroup blocking them, so squeezelite fails with `No such device` and the panel
+lists only conversion plugins (`lavrate`, `speexrate`, …) with no `hw:CARD=…`
+entries at all. The panel warns when it sees exactly that. If your devices still
+do not appear, the Output dropdown has a **Custom ALSA device…** entry for
+typing one in by hand.
+
+A player on an ALSA output is not sink-watchdogged — there is no PipeWire graph
+node to watch, and squeezelite reports device loss itself.
+
+### Running several players on one host
+
+They can all live in this one container, on one IP. **Music Assistant identifies
+a slimproto player by its MAC and nothing else** — see
+[`aioslimproto/client.py`](https://github.com/music-assistant/aioslimproto/blob/main/aioslimproto/client.py):
+
+```python
+def player_id(self) -> str:
+    """Return mac address of the player (used as player id)."""
+```
+
+So players sharing one MAC collapse into a single entry that the instances fight
+over — the usual symptom of copying a compose file and leaving `MAC_ADDR`
+unchanged. Give each its own address and they appear as separate rooms. The
+panel does that for you (below), so no macvlan, no extra host IPs, and no
+per-player container are needed for this.
+
 ### Every player gets its own MAC
 
 Squeezebox servers identify a player by its MAC, and store that player's
