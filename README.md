@@ -467,15 +467,57 @@ because the symptom of getting that wrong is silence.
 
 ## 🚀 Deployment (Docker Compose)
 
-Use the following ```docker-compose.yml``` to deploy Squeezelite.
+Note: ensure `/run/user/1000` matches your actual user id (`id -u`).
 
-Note: Ensure /run/user/1000 matches your actual User ID (id -u).
+### The panel (default)
 
-> **Host networking here too:** it buys this player broadcast discovery of the
-> server, but if this machine also runs a snapcast/AirPlay/Cast player, Music
-> Assistant may fold this one into it and it will not show up as its own room.
-> If that happens, drop `network_mode: host`, publish no ports (a single player
-> needs none) and set `SERVER_IP` explicitly — see
+No `ROLE` needed — the image runs the panel when nothing says otherwise. Players
+are created in the browser and stored in `/config`, so this file does not change
+when you add a DAC. Full version with comments:
+[`docker-compose-panel-example.yaml`](docker-compose-panel-example.yaml).
+
+```yaml
+services:
+  squeezelite-panel:
+    image: ghcr.io/shuricksumy/squeezelite-pipewire:latest
+    container_name: squeezelite-panel
+    restart: unless-stopped
+    # NOT network_mode: host -- see the warning in the Web panel section above
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=8080
+      - SERVER_IP=192.168.1.100       # required: no broadcast discovery here
+      - SERVER_PORT=3483
+      # - ADMIN_PASSWORD=change-me    # HTTP Basic auth on every route
+      - PIPEWIRE_RUNTIME_DIR=/tmp
+      - PIPEWIRE_REMOTE=pipewire-0
+    volumes:
+      - ./panel_config:/config        # mkdir + chown -R 1000:1000 first
+      - /run/user/1000/pipewire-0:/tmp/pipewire-0
+      - /dev/shm:/dev/shm
+    devices:
+      - /dev/snd:/dev/snd             # only for the direct-ALSA output mode
+    cap_add: [ SYS_NICE, IPC_LOCK ]
+    ulimits:
+      rtprio: 95
+      memlock: -1
+      msgqueue: 8192000
+    group_add: [ audio, video ]
+```
+
+### A single player (ROLE=player)
+
+One squeezelite configured entirely by environment — the original behaviour, and
+still the right choice for one DAC on a machine that runs nothing else.
+**`ROLE=player` is required**, otherwise you get the panel and these variables
+are ignored.
+
+> **On host networking:** it buys this player broadcast discovery of the server,
+> but if this machine also runs a snapcast/AirPlay/Cast player, Music Assistant
+> may fold this one into it and it will not show up as its own room. If that
+> happens, drop `network_mode: host` and set `SERVER_IP` explicitly — a single
+> player needs no published ports. See
 > [Running several players on one host](#running-several-players-on-one-host).
 
 ```yaml
@@ -496,18 +538,19 @@ services:
       - audio
       - video
     environment:
+      - ROLE=player                   # required: the image defaults to the panel
       - PLAYER_NAME=DX5 # part of name like in wpctl status Audio - to set volume
-      - SERVER_IP=192.168.1.100       # IP of your LMS Server
+      - SERVER_IP=192.168.1.100       # IP of your Music Assistant / LMS server
       - MAC_ADDR=72:23:90:88:38:63    # Unique MAC for this player
       - PIPEWIRE_RUNTIME_DIR=/tmp
       - PIPEWIRE_REMOTE=pipewire-0
-      - PIPEWIRE_NODE=alsa_output.usb-Topping_DX5-00.analog-stereo # like sync name in wpctl status
+      - PIPEWIRE_NODE=alsa_output.usb-Topping_DX5-00.analog-stereo # like sink name in wpctl status
       - SQUEEZE_EXTRA=-a 16384:8:24:0 -b 8000:12000 -C 5 -U Master #squeezelite -L
     volumes:
       - /run/user/1000/pipewire-0:/tmp/pipewire-0
       - /dev/shm:/dev/shm
-      - /dev/snd:/dev/snd
-
+    devices:
+      - /dev/snd:/dev/snd             # only needed to reach ALSA hardware directly
 ```
 
 ## ⚙️ Configuration Variables

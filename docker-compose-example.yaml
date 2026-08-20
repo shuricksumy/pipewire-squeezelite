@@ -52,10 +52,13 @@ services:
       
       # Essential for PipeWire's shared memory communication
       - /dev/shm:/dev/shm
-      
-      # Optional: Map ALSA devices directly as a fallback
-      - /dev/snd:/dev/snd
 
     # Note: If running as a non-root user (1000), 
     # ensure the user has permission to /dev/snd on the host.
     # user: "1000:1000"
+
+    # As devices, not volumes: "-v /dev/snd" maps the nodes but the device cgroup
+    # still refuses to open them. Only needed to reach ALSA hardware directly;
+    # the PipeWire path above does not use it.
+    devices:
+      - /dev/snd:/dev/snd
