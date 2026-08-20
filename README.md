@@ -7,9 +7,16 @@ This repository provides a high-performance Squeezelite Docker container optimiz
 [![Build_Push_Scan](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml/badge.svg)](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/shuricksumy/home-audio-stack/main/docs/bitperfect-192.png" width="46%" alt="Music Assistant: input Tidal FLAC 192 kHz / 24 bits, output 192 kHz / 24 bits to the DX5">
-  <br><sub>A Tidal FLAC at 192 kHz / 24 bits reaching the DAC unchanged — and the
-  <a href="#check-hardware-clock-the-truth">kernel agrees</a>: <code>rate: 192000</code>, DAC clock 191998 Hz.</sub>
+  <a href="#panel"><img src="docs/panel-players.png" width="92%" alt="The web panel: three squeezelite players, two running against Music Assistant, one on a direct ALSA device"></a>
+  <br><sub><b>Run the image and open port 8080.</b> Add a player, pick its DAC, press
+  Start — no compose editing, no SSH. Each row is its own supervised squeezelite
+  process. <a href="#panel">More about the panel ↓</a></sub>
+</p>
+
+<p align="center">
+  <img src="docs/panel-edit.png" width="92%" alt="The edit dialog: name, output sink, server, port, MAC, mixer control, sample format, ALSA buffer and periods, mmap, buffers, idle close, PipeWire latency and volume">
+  <br><sub>Every knob that matters is a field: sample format, buffers, idle close,
+  the mixer control, DSD — not hidden behind "advanced".</sub>
 </p>
 
 ## ✨ What you get
@@ -20,6 +27,13 @@ This repository provides a high-performance Squeezelite Docker container optimiz
 | 🎼 **DSD too** | Decoded natively, or passed through as DoP. |
 | 🔊 **Hardware volume** | Handed to the PipeWire mixer, not attenuated in software where it costs you bits. |
 | 🏠 **It is just a room** | Music Assistant drives it through its Squeezelite provider, so it appears next to every other player. |
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/shuricksumy/home-audio-stack/main/docs/bitperfect-192.png" width="46%" alt="Music Assistant: input Tidal FLAC 192 kHz / 24 bits, output 192 kHz / 24 bits to the DX5">
+  <br><sub>And it stays bit-perfect: a Tidal FLAC at 192 kHz / 24 bits reaching the DAC
+  unchanged — the <a href="#check-hardware-clock-the-truth">kernel agrees</a>,
+  <code>rate: 192000</code>, DAC clock 191998 Hz.</sub>
+</p>
 
 **Running more than one room?** The [Home Audio Stack](https://github.com/shuricksumy/home-audio-stack) has a [complete compose file](https://github.com/shuricksumy/home-audio-stack/tree/main/examples) with this image alongside the others.
 
@@ -258,6 +272,8 @@ pw-cli ls Node | grep -E 'node.name|node.description'
 - PIPEWIRE_NODE="bluez_output.20_18_12_00_07_C4.1"
 ```
 
+<a id="panel"></a>
+
 ## 🎛️ Web panel (ROLE=panel)
 
 Editing compose and redeploying for every player gets old fast — especially with
@@ -265,20 +281,6 @@ several DACs on one host. The panel is what the image runs by default: pick a
 PipeWire sink, name the player, press Add. It launches straight away and the panel
 keeps it alive. (Set `ROLE=player` for the original single-squeezelite-from-
 environment behaviour instead.)
-
-<p align="center">
-  <img src="docs/panel-players.png" width="92%" alt="The panel's player list: three players, two running against Music Assistant, one bound to a direct ALSA device">
-  <br><sub>Each row is a supervised squeezelite process with its own MAC, output and uptime.</sub>
-</p>
-
-Everything about a player is editable in place — including the parameters people
-usually reach for the compose file to change:
-
-<p align="center">
-  <img src="docs/panel-edit.png" width="92%" alt="The edit dialog: name, output sink, server, port, MAC, mixer control, sample format, ALSA buffer and periods, mmap, stream and output buffers, idle close, PipeWire latency, volume and extra arguments">
-  <br><sub>Sample format, buffers, idle close and the mixer control are first-class
-  fields, not hidden behind "advanced". Delete lives here rather than on every row.</sub>
-</p>
 
 ```bash
 mkdir -p ./panel_config && sudo chown -R 1000:1000 ./panel_config
