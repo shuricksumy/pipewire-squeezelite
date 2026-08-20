@@ -320,25 +320,57 @@ pw-top
 cat /proc/asound/card*/pcm0p/sub0/hw_params
 ```
 
-This is the one that settles the argument: it reports what the sound card is
-*actually* doing, not what any layer above it claims. While a 96 kHz/24-bit track
-is playing you want to see the track's own numbers:
+This is the one that settles the argument: it is the kernel reporting what the
+sound card is *actually* doing, not what any layer above it claims. Captured from
+a Topping DX5 playing a 192 kHz track through this image:
 
 ```
 access: MMAP_INTERLEAVED
-format: S32_LE          <- 24-bit carried in a 32-bit word
+format: S32_LE
 subformat: STD
 channels: 2
-rate: 96000 (96000/1)   <- the track's rate, not a house default
-period_size: 4096
-buffer_size: 16384
+rate: 192000 (192000/1)
+period_size: 1024
+buffer_size: 32768
 ```
 
-Play a 44.1 kHz track next and `rate:` should follow it to `44100`. If it stays
-pinned at one value no matter what you play, something upstream is resampling and
-the DAC is not getting the original.
+`format: S32_LE` is 24-bit audio carried in 32-bit words, which is how USB Audio
+Class devices take it — squeezelite was started with `-a 16384:8:24:0`, so 24 bits
+is what it asked for. `rate:` follows the track: play a 44.1 kHz file next and it
+becomes `44100`. If it stays pinned at one value whatever you play, something
+upstream is resampling and the DAC is not getting the original.
 
 `closed` means nothing is playing through that card right now.
+
+### Ask the USB link itself:
+```bash
+cat /proc/asound/card*/stream0
+```
+
+Even more direct — the USB audio stream, live, from the same DX5:
+
+```
+Topping DX5 at usb-5200000.usb-1, high speed : USB Audio
+
+Playback:
+  Status: Running
+    Interface = 1
+    Altset = 1
+    Momentary freq = 191998 Hz (0x17.fff0)
+  Interface 1
+    Altset 1
+    Format: S32_LE
+    Channels: 2
+    Endpoint: 0x01 (1 OUT) (ASYNC)
+    Rates: 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000
+    Bits: 32
+```
+
+`Momentary freq` is the DAC's own asynchronous clock as measured over the USB
+feedback endpoint — 191998 Hz, i.e. 192 kHz, drifting by two parts in a hundred
+thousand. The host is following the DAC, not the other way round. That capture is
+from an **Orange Pi Zero 2W** (arm64), so this is not a "needs a big x86 box"
+setup.
 
 ## 🏗️ Build Information
 This project uses a multi-stage Docker build.
