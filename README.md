@@ -6,6 +6,17 @@ This repository provides a high-performance Squeezelite Docker container optimiz
 
 [![Build_Push_Scan](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml/badge.svg)](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml)
 
+## ✨ What you get
+
+|  | |
+| :-- | :-- |
+| 🎯 **Bit-perfect, genuinely** | The DAC follows each track: 44.1, 96, 192 kHz, 16- or 24-bit. Nothing is converted to one house format on the way. |
+| 🎼 **DSD too** | Decoded natively, or passed through as DoP. |
+| 🔊 **Hardware volume** | Handed to the PipeWire mixer, not attenuated in software where it costs you bits. |
+| 🏠 **It is just a room** | Music Assistant drives it through its Squeezelite provider, so it appears next to every other player. |
+
+**Running more than one room?** The [Home Audio Stack](https://github.com/shuricksumy/home-audio-stack) has a [complete compose file](https://github.com/shuricksumy/home-audio-stack/tree/main/examples) with this image alongside the others.
+
 ## 🎯 Why this exists
 
 [**Music Assistant**](https://www.music-assistant.io/) is the library and streaming brain — Spotify,
