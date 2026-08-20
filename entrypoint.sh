@@ -1,5 +1,31 @@
 #!/bin/bash
+# Squeezelite launcher. One image, two roles:
+#   ROLE=player (default) - one supervised squeezelite, configured by environment.
+#                           This is the original behaviour, unchanged.
+#   ROLE=panel            - the web panel, which supervises several players itself.
 set -x
+
+ROLE="${ROLE:-player}"
+
+if [ "$ROLE" = "panel" ]; then
+    set +x
+    # /config holds players.json. Without a writable one the panel still runs,
+    # but every player vanishes on restart -- so say so loudly here as well as
+    # in the UI, where it shows up as a warning banner.
+    if ! mkdir -p /config 2>/dev/null || [ ! -w /config ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] /config is not writable by uid $(id -u)."
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] Players will not survive a restart. Fix with:"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN]     sudo chown -R 1000:1000 ./panel_config"
+    fi
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] Starting the web panel on port ${PORT:-8080}"
+    cd /opt/panel || exit 1
+    exec python3 app.py
+fi
+
+if [ "$ROLE" != "player" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [ERROR] Unknown ROLE '$ROLE' (expected 'player' or 'panel')."
+    exit 1
+fi
 
 log() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$1] $2"; }
 

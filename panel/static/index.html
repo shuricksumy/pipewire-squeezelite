@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Squeezelite Players</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #16181d; --muted: #5c6370;
+    --line: #dfe2e8; --accent: #2f6feb; --ok: #1a7f45; --warn: #9a6b00;
+    --bad: #b3261e; --chip: #eef1f6; --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --card: #1c1f25; --ink: #e8eaed; --muted: #9aa1ac;
+      --line: #2c313a; --accent: #6f9dff; --ok: #5cc98b; --warn: #e0b25c;
+      --bad: #ff8f85; --chip: #23272f; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --card: #1c1f25; --ink: #e8eaed; --muted: #9aa1ac;
+    --line: #2c313a; --accent: #6f9dff; --ok: #5cc98b; --warn: #e0b25c;
+    --bad: #ff8f85; --chip: #23272f; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--line); background: var(--card);
+  }
+  header h1 { font-size: 1.1rem; margin: 0; font-weight: 650; }
+  header .spacer { flex: 1; }
+  main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow); margin-bottom: 1rem; overflow: hidden;
+  }
+  .card > h2 {
+    margin: 0; padding: .75rem 1rem; font-size: .95rem; font-weight: 650;
+    border-bottom: 1px solid var(--line);
+  }
+  .card > .body { padding: 1rem; }
+  button {
+    font: inherit; padding: .35rem .7rem; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger:hover { border-color: var(--bad); color: var(--bad); }
+  button[disabled] { opacity: .5; cursor: not-allowed; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  .scroll { overflow-x: auto; }
+  .chip {
+    display: inline-block; padding: .1rem .5rem; border-radius: 999px;
+    background: var(--chip); font-size: .8rem; white-space: nowrap;
+  }
+  .state-running { color: var(--ok); font-weight: 600; }
+  .state-stopped { color: var(--muted); }
+  .state-backoff, .state-waiting, .state-starting { color: var(--warn); }
+  .state-failed { color: var(--bad); font-weight: 600; }
+  .muted { color: var(--muted); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85em; }
+  .warn {
+    border-left: 3px solid var(--warn); background: var(--chip);
+    padding: .6rem .8rem; border-radius: 0 7px 7px 0; margin-bottom: .6rem;
+  }
+  form.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; }
+  label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: .2rem; }
+  input, select {
+    font: inherit; width: 100%; padding: .35rem .5rem; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  .row-actions { display: flex; gap: .35rem; flex-wrap: wrap; }
+  .full { grid-column: 1 / -1; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  pre.log {
+    margin: 0; padding: .8rem; max-height: 22rem; overflow: auto; background: var(--bg);
+    border-top: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace;
+    font-size: .8rem; white-space: pre-wrap; word-break: break-word;
+  }
+  .checkline { display: flex; align-items: center; gap: .4rem; }
+  .checkline input { width: auto; }
+  .err { color: var(--bad); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎵 Squeezelite Players</h1>
+  <span id="summary" class="muted"></span>
+  <span class="spacer"></span>
+  <button id="theme">◐ Theme</button>
+  <button id="refresh">↻ Refresh</button>
+</header>
+
+<main>
+  <div id="warnings"></div>
+
+  <div class="card">
+    <h2>Players</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Output</th><th>Server</th><th>State</th>
+            <th>Uptime</th><th>Restarts</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="players"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitle">Add a player</h2>
+    <div class="body">
+      <form class="grid" id="form" autocomplete="off">
+        <div>
+          <label for="f-name">Name (shown on the server)</label>
+          <input id="f-name" name="name" required>
+        </div>
+        <div>
+          <label for="f-node">Output sink</label>
+          <select id="f-node" name="node"></select>
+        </div>
+        <div>
+          <label for="f-server">Server (blank = auto-discover)</label>
+          <input id="f-server" name="server" placeholder="192.168.1.50">
+        </div>
+        <div>
+          <label for="f-port">Port</label>
+          <input id="f-port" name="port" type="number" min="1" max="65535">
+        </div>
+        <div>
+          <label for="f-mac">MAC (blank = generated)</label>
+          <input id="f-mac" name="mac" class="mono" placeholder="auto">
+        </div>
+        <div>
+          <label for="f-mixer">Mixer control (-U, blank = software)</label>
+          <input id="f-mixer" name="mixer" placeholder="Master">
+        </div>
+        <div>
+          <label for="f-alsa_format">Sample format (-a f)</label>
+          <select id="f-alsa_format" name="alsa_format"></select>
+        </div>
+        <div>
+          <label for="f-alsa_buffer">ALSA buffer (-a b)</label>
+          <input id="f-alsa_buffer" name="alsa_buffer" type="number" min="0">
+        </div>
+        <div>
+          <label for="f-alsa_period">ALSA periods (-a p)</label>
+          <input id="f-alsa_period" name="alsa_period" type="number" min="0">
+        </div>
+        <div>
+          <label for="f-alsa_mmap">mmap (-a m)</label>
+          <select id="f-alsa_mmap" name="alsa_mmap">
+            <option value="0">0 - off</option>
+            <option value="1">1 - on</option>
+          </select>
+        </div>
+        <div>
+          <label for="f-stream_buffer">Stream buffer (-b)</label>
+          <input id="f-stream_buffer" name="stream_buffer" type="number" min="0">
+        </div>
+        <div>
+          <label for="f-output_buffer">Output buffer (-b)</label>
+          <input id="f-output_buffer" name="output_buffer" type="number" min="0">
+        </div>
+        <div>
+          <label for="f-close_delay">Idle close (-C, seconds)</label>
+          <input id="f-close_delay" name="close_delay" type="number" min="0" max="3600">
+        </div>
+        <div>
+          <label for="f-pipewire_latency">PipeWire latency</label>
+          <input id="f-pipewire_latency" name="pipewire_latency" class="mono" placeholder="1024/48000">
+        </div>
+        <div>
+          <label for="f-volume">Initial sink volume (0-1)</label>
+          <input id="f-volume" name="volume" type="number" min="0" max="1" step="0.05">
+        </div>
+        <div>
+          <label for="f-extra">Extra squeezelite arguments</label>
+          <input id="f-extra" name="extra" class="mono" placeholder="-R -v">
+        </div>
+        <div class="full">
+          <span class="checkline">
+            <input type="checkbox" id="f-dsd" name="dsd"><label for="f-dsd">DSD / DoP (-D)</label>
+          </span>
+          <span class="checkline">
+            <input type="checkbox" id="f-autostart" name="autostart"><label for="f-autostart">Start automatically</label>
+          </span>
+        </div>
+        <div class="full">
+          <button class="primary" id="submit" type="submit">Add player</button>
+          <button type="button" id="cancel" class="hidden">Cancel</button>
+          <span id="formError" class="err"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card hidden" id="logCard">
+    <h2><span id="logTitle">Log</span>
+      <button id="logClose" style="float:right">Close</button>
+    </h2>
+    <pre class="log" id="log"></pre>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // Home Assistant Ingress serves this page under /api/hassio_ingress/<token>/
+  // and strips that prefix before the request reaches Flask. An absolute
+  // "/api/..." would escape the prefix and 404; everything must be relative to
+  // where the page itself was served from.
+  const BASE = document.baseURI.replace(/[^/]*$/, "");
+  const api = (path) => BASE + String(path).replace(/^\//, "");
+
+  const $ = (id) => document.getElementById(id);
+  const state = { players: [], sinks: [], config: null, editing: null, logFor: null };
+
+  async function call(path, options) {
+    const res = await fetch(api(path), options);
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* empty body */ }
+    if (!res.ok) throw new Error(data.error || (res.status + " " + res.statusText));
+    return data;
+  }
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function uptime(seconds) {
+    if (!seconds) return "-";
+    const s = Math.floor(seconds);
+    if (s < 60) return s + "s";
+    if (s < 3600) return Math.floor(s / 60) + "m " + (s % 60) + "s";
+    return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+  }
+
+  function renderWarnings() {
+    const box = $("warnings");
+    const list = (state.config && state.config.warnings) || [];
+    box.innerHTML = list.map((w) => '<div class="warn">⚠️ ' + esc(w) + "</div>").join("");
+  }
+
+  function renderSinks() {
+    const select = $("f-node");
+    const current = select.value;
+    const options = ['<option value="">(default sink)</option>'];
+    for (const sink of state.sinks) {
+      options.push('<option value="' + esc(sink.node) + '">' +
+        esc(sink.description) + " — " + esc(sink.node) + "</option>");
+    }
+    // Keep a node that is configured but not currently present selectable.
+    if (current && !state.sinks.some((s) => s.node === current)) {
+      options.push('<option value="' + esc(current) + '">' + esc(current) + " (absent)</option>");
+    }
+    select.innerHTML = options.join("");
+    select.value = current;
+  }
+
+  function renderPlayers() {
+    const body = $("players");
+    if (!state.players.length) {
+      body.innerHTML = '<tr><td colspan="7" class="muted">No players yet. Add one below.</td></tr>';
+    } else {
+      body.innerHTML = state.players.map((p) => {
+        const nodeLabel = p.node
+          ? esc(p.node) + (p.node_present === false ? ' <span class="chip">absent</span>' : "")
+          : '<span class="muted">default sink</span>';
+        const server = p.server
+          ? esc(p.server) + ":" + esc(p.port)
+          : '<span class="muted">auto-discover</span>';
+        return "<tr>" +
+          "<td><strong>" + esc(p.name) + "</strong><br>" +
+            '<span class="mono muted">' + esc(p.mac) + "</span></td>" +
+          '<td class="mono">' + nodeLabel + "</td>" +
+          "<td>" + server + "</td>" +
+          '<td><span class="state-' + esc(p.state) + '">' + esc(p.state) + "</span>" +
+            (p.detail ? '<br><span class="muted">' + esc(p.detail) + "</span>" : "") + "</td>" +
+          "<td>" + uptime(p.uptime) + "</td>" +
+          "<td>" + esc(p.restarts) + "</td>" +
+          '<td><div class="row-actions">' +
+            (p.running
+              ? '<button data-act="stop" data-id="' + p.id + '">Stop</button>'
+              : '<button data-act="start" data-id="' + p.id + '">Start</button>') +
+            '<button data-act="restart" data-id="' + p.id + '">Restart</button>' +
+            '<button data-act="logs" data-id="' + p.id + '">Log</button>' +
+            '<button data-act="edit" data-id="' + p.id + '">Edit</button>' +
+            '<button class="danger" data-act="delete" data-id="' + p.id + '">Delete</button>' +
+          "</div></td></tr>";
+      }).join("");
+    }
+    const running = state.players.filter((p) => p.running).length;
+    $("summary").textContent = state.players.length
+      ? running + " of " + state.players.length + " running"
+      : "";
+  }
+
+  function fillForm(cfg) {
+    const form = $("form");
+    for (const [key, value] of Object.entries(cfg)) {
+      const field = form.elements[key];
+      if (!field) continue;
+      if (field.type === "checkbox") field.checked = !!value;
+      else field.value = value === null ? "" : value;
+    }
+  }
+
+  function readForm() {
+    const form = $("form");
+    const out = {};
+    for (const field of form.elements) {
+      if (!field.name) continue;
+      out[field.name] = field.type === "checkbox" ? field.checked : field.value;
+    }
+    return out;
+  }
+
+  function startEdit(player) {
+    state.editing = player.id;
+    renderSinks();
+    fillForm(player);
+    $("f-node").value = player.node || "";
+    $("formTitle").textContent = "Edit " + player.name;
+    $("submit").textContent = "Save changes";
+    $("cancel").classList.remove("hidden");
+    $("formTitle").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function resetForm() {
+    state.editing = null;
+    $("form").reset();
+    fillForm(state.config ? state.config.defaults : {});
+    $("f-mac").value = "";
+    $("formTitle").textContent = "Add a player";
+    $("submit").textContent = "Add player";
+    $("cancel").classList.add("hidden");
+    $("formError").textContent = "";
+  }
+
+  async function refresh() {
+    try {
+      const [players, sinks] = await Promise.all([call("api/players"), call("api/sinks")]);
+      state.players = players.players || [];
+      state.sinks = sinks.sinks || [];
+      renderPlayers();
+      renderSinks();
+      if (state.logFor) loadLog(state.logFor);
+    } catch (err) {
+      $("summary").innerHTML = '<span class="err">' + esc(err.message) + "</span>";
+    }
+  }
+
+  async function loadLog(id) {
+    try {
+      const data = await call("api/players/" + id + "/logs");
+      $("logTitle").textContent = "Log — " + data.name;
+      const pre = $("log");
+      const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+      pre.textContent = (data.lines || []).join("\n") || "(nothing yet)";
+      if (atBottom) pre.scrollTop = pre.scrollHeight;
+      $("logCard").classList.remove("hidden");
+    } catch (err) {
+      $("log").textContent = err.message;
+    }
+  }
+
+  $("players").addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-act]");
+    if (!button) return;
+    const id = button.dataset.id;
+    const act = button.dataset.act;
+    const player = state.players.find((p) => p.id === id);
+    if (act === "edit") return startEdit(player);
+    if (act === "logs") { state.logFor = id; return loadLog(id); }
+    if (act === "delete") {
+      if (!window.confirm("Delete " + (player ? player.name : "this player") + "?")) return;
+    }
+    button.disabled = true;
+    try {
+      const data = act === "delete"
+        ? await call("api/players/" + id, { method: "DELETE" })
+        : await call("api/players/" + id + "/" + act, { method: "POST" });
+      state.players = data.players || state.players;
+      renderPlayers();
+    } catch (err) {
+      window.alert(err.message);
+    } finally {
+      button.disabled = false;
+      refresh();
+    }
+  });
+
+  $("form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    $("formError").textContent = "";
+    $("submit").disabled = true;
+    const payload = readForm();
+    try {
+      const data = state.editing
+        ? await call("api/players/" + state.editing, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await call("api/players", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      state.players = data.players || state.players;
+      resetForm();
+      renderPlayers();
+    } catch (err) {
+      $("formError").textContent = err.message;
+    } finally {
+      $("submit").disabled = false;
+    }
+  });
+
+  $("cancel").addEventListener("click", resetForm);
+  $("refresh").addEventListener("click", refresh);
+  $("logClose").addEventListener("click", () => {
+    state.logFor = null;
+    $("logCard").classList.add("hidden");
+  });
+
+  // Three states: system (no attribute, follows prefers-color-scheme), light, dark.
+  $("theme").addEventListener("click", () => {
+    const now = document.documentElement.getAttribute("data-theme");
+    const next = now === "dark" ? "light" : now === "light" ? "" : "dark";
+    if (next) document.documentElement.setAttribute("data-theme", next);
+    else document.documentElement.removeAttribute("data-theme");
+    try { window.localStorage.setItem("theme", next); } catch (e) { /* private mode */ }
+  });
+  try {
+    const saved = window.localStorage.getItem("theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+  } catch (e) { /* private mode */ }
+
+  (async function boot() {
+    try {
+      state.config = await call("api/config");
+      const select = $("f-alsa_format");
+      select.innerHTML = (state.config.formats || []).map((f) =>
+        '<option value="' + esc(f) + '">' + (f ? esc(f) + "-bit" : "device default") + "</option>"
+      ).join("");
+      renderWarnings();
+      resetForm();
+    } catch (err) {
+      $("warnings").innerHTML = '<div class="warn err">' + esc(err.message) + "</div>";
+    }
+    await refresh();
+    window.setInterval(refresh, 5000);
+  })();
+})();
+</script>
+</body>
+</html>

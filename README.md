@@ -258,6 +258,95 @@ pw-cli ls Node | grep -E 'node.name|node.description'
 - PIPEWIRE_NODE="bluez_output.20_18_12_00_07_C4.1"
 ```
 
+## 🎛️ Web panel (ROLE=panel)
+
+Editing compose and redeploying for every player gets old fast — especially with
+several DACs on one host. Set `ROLE=panel` and the same image serves a small web
+UI instead: pick a PipeWire sink, name the player, press Add. It launches
+straight away and the panel keeps it alive.
+
+```bash
+mkdir -p ./panel_config && sudo chown -R 1000:1000 ./panel_config
+docker compose -f docker-compose-panel-example.yaml up -d
+# then open http://<host>:8080
+```
+
+What it does:
+
+- **Lists the host's PipeWire sinks** (`pw-dump`), so binding a player to the
+  right DAC is a dropdown rather than a `pw-cli ls Node | grep` session.
+- **Runs several players in one container**, each a supervised `squeezelite`
+  child with its own `PIPEWIRE_NODE` — one per DAC, no container per player.
+- **Exposes the knobs that matter** rather than hiding them: sample format
+  (`-a` 16/24/24_3/32), buffer and period, stream/output buffers (`-b`), idle
+  close (`-C`), DSD/DoP (`-D`) and the mixer control (`-U`).
+- **Supervises**: crash or server outage restarts with the same 5s→60s backoff
+  the single-player role uses, and the delay resets after a session that stayed
+  up, so an outage from this morning does not cost 60s tonight.
+- **Watches the sink, not just the process.** A DAC that disappears mid-stream
+  does not necessarily take squeezelite with it, which would leave a player that
+  looks healthy and cannot make a sound. The sink is polled while running and
+  the player restarts after ~15s of absence — long enough that a sample-rate
+  switch is not mistaken for a failure.
+- **Tails each player's log** in the browser.
+
+### Every player gets its own MAC
+
+Squeezebox servers identify a player by its MAC, and store that player's
+settings against it. Two players sharing one address fight over a single slot in
+Music Assistant's player list. So the panel generates a locally-administered MAC
+(`02:…`) for each new player and stores it in `players.json`, which keeps it
+stable across restarts. You can set one by hand; duplicates are rejected.
+
+### Settings live in /config
+
+Every player you create is written to `/config/players.json` (a temporary file
+renamed into place, so an interrupted write cannot leave a broken config), and
+loaded again at startup. Players flagged **Start automatically** come back up on
+their own.
+
+Mount something writable there. Docker creates a missing bind-mount source as a
+root-owned directory, which the unprivileged image cannot write — hence the
+`chown` above. If it is wrong, the panel says so in a banner instead of quietly
+losing your players.
+
+### Real-time scheduling applies to the whole container
+
+Players are children of the panel process, so they inherit **the panel
+container's** limits. Without `cap_add: [SYS_NICE, IPC_LOCK]` and
+`ulimits: {rtprio: 95, memlock: -1}` every player runs at ordinary priority and
+hi-res material drops out. The panel checks its own limits at startup and shows
+a warning banner when they are missing, so this fails loudly rather than as
+mystery glitching. Confirm the result on the host:
+
+```bash
+cat /proc/asound/card*/stream0    # Status: Running, Momentary freq = track rate
+```
+
+### Access control
+
+`ADMIN_PASSWORD` (with optional `ADMIN_USER`, default `admin`) puts HTTP Basic
+auth on **every** route, the page included. Leave it unset and the panel is open
+to anyone who can reach the port — fine on a trusted LAN, not on a port-forward.
+The UI calls its API relative to the page it was served from, so it also works
+behind a reverse proxy or Home Assistant Ingress, which serves it under a prefix.
+
+### Panel environment variables
+
+| Variable | Description | Default |
+| :-- | :-- | :-- |
+| `ROLE` | `player` (one squeezelite from environment) or `panel` | `player` |
+| `PORT` | Port the panel listens on | `8080` |
+| `SERVER_IP` | Seeds the Add-player form's server field | *(empty: discover)* |
+| `SERVER_PORT` | Seeds the form's port field | `3483` |
+| `ADMIN_USER` | Basic-auth user, when a password is set | `admin` |
+| `ADMIN_PASSWORD` | Enables Basic auth on every route | *(unset: no auth)* |
+| `CONFIG_DIR` | Where `players.json` is kept | `/config` |
+
+`ROLE=player` is the default and is completely unchanged: existing compose files
+keep working exactly as before, and none of the panel runs.
+
+
 ## 🚀 Deployment (Docker Compose)
 
 Use the following ```docker-compose.yml``` to deploy Squeezelite.
