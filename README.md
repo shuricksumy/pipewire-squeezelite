@@ -285,8 +285,26 @@ environment behaviour instead.)
 ```bash
 mkdir -p ./panel_config && sudo chown -R 1000:1000 ./panel_config
 docker compose -f docker-compose-panel-example.yaml up -d
-# then open http://<host>:8080
+# then open http://<host>:8082
 ```
+
+> ### ⚠️ Do not give the panel `network_mode: host`
+>
+> Not if anything else on that machine is also a Music Assistant player — a
+> snapclient, an AirPlay or Cast endpoint, a LedFx container, another panel.
+> **MA merges players that share an IP into one device**, and your squeezelite
+> players are the ones absorbed: they stop appearing as rooms entirely, with no
+> error anywhere to explain it.
+>
+> A normal bridge network with a published port gives the container its own IP
+> and the problem does not arise — that is what the
+> [compose example](docker-compose-panel-example.yaml) does. The cost is that
+> broadcast discovery no longer reaches the container, so every player needs an
+> explicit server address.
+>
+> Several players *inside* one panel are fine either way; MA refuses to merge
+> two players of the same protocol. Full explanation:
+> [Running several players on one host](#running-several-players-on-one-host).
 
 What it does:
 
@@ -452,6 +470,13 @@ because the symptom of getting that wrong is silence.
 Use the following ```docker-compose.yml``` to deploy Squeezelite.
 
 Note: Ensure /run/user/1000 matches your actual User ID (id -u).
+
+> **Host networking here too:** it buys this player broadcast discovery of the
+> server, but if this machine also runs a snapcast/AirPlay/Cast player, Music
+> Assistant may fold this one into it and it will not show up as its own room.
+> If that happens, drop `network_mode: host`, publish no ports (a single player
+> needs none) and set `SERVER_IP` explicitly — see
+> [Running several players on one host](#running-several-players-on-one-host).
 
 ```yaml
 services:
