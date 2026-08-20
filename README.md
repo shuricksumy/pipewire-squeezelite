@@ -1,5 +1,7 @@
 # Squeezelite-PipeWire (Hi-Fi Edition)
 
+> **Part of the [Home Audio Stack](https://github.com/shuricksumy/home-audio-stack)** — Music Assistant → Snapcast → PipeWire, into USB DACs, Bluetooth speakers and LED strips. That page maps how these projects fit together.
+
 This repository provides a high-performance Squeezelite Docker container optimized for PipeWire and bit-perfect audio delivery. It is specifically pre-configured for high-end DACs like the Topping DX5, supporting sample rates up to 384kHz and DSD.
 
 [![Build_Push_Scan](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml/badge.svg)](https://github.com/shuricksumy/pipewire-squeezelite/actions/workflows/build.yml)
