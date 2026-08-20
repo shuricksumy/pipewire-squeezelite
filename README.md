@@ -320,6 +320,26 @@ pw-top
 cat /proc/asound/card*/pcm0p/sub0/hw_params
 ```
 
+This is the one that settles the argument: it reports what the sound card is
+*actually* doing, not what any layer above it claims. While a 96 kHz/24-bit track
+is playing you want to see the track's own numbers:
+
+```
+access: MMAP_INTERLEAVED
+format: S32_LE          <- 24-bit carried in a 32-bit word
+subformat: STD
+channels: 2
+rate: 96000 (96000/1)   <- the track's rate, not a house default
+period_size: 4096
+buffer_size: 16384
+```
+
+Play a 44.1 kHz track next and `rate:` should follow it to `44100`. If it stays
+pinned at one value no matter what you play, something upstream is resampling and
+the DAC is not getting the original.
+
+`closed` means nothing is playing through that card right now.
+
 ## 🏗️ Build Information
 This project uses a multi-stage Docker build.
 
