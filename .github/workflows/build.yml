@@ -12,6 +12,8 @@ on:
     paths-ignore:
       - '.github/**'
       - '*.md'
+  pull_request:
+    branches: [ main ]
   release:
     types: [published]
   # Rebuild weekly so Debian security updates reach the published image even
@@ -30,7 +32,25 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # The suite drives tests/fake_squeezelite.py, so it needs no PipeWire, no DAC
+  # and no root -- it runs on a stock runner.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install test dependencies
+        run: pip install --disable-pip-version-check flask pytest
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.version }}
@@ -75,7 +95,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          # A pull request builds to prove the Dockerfile still works, but must
+          # not publish -- :latest would be replaced by unreviewed code.
+          push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -83,6 +105,8 @@ jobs:
           cache-to: type=gha,mode=max
 
   scan:
+    # Nothing was pushed on a pull request, so there is no image to pull here.
+    if: github.event_name != 'pull_request'
     # This workflow is named "Build_Push_Scan" but had no scan step -- same gap found and fixed
     # in the sibling ledfx-snapcast-docker repo. Scans the pushed GHCR image itself (base Debian
     # packages, the compiled squeezelite binary's runtime libs), not just source -- there's no

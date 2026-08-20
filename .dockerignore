@@ -1,0 +1,14 @@
+# Keep the build context small and the image free of local clutter. The panel is
+# copied in as source; compiled bytecode from a test run on the host must not
+# ride along, and touching it would needlessly bust the COPY layer's cache.
+.git
+.github
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+docker-compose*.yaml
+docker-compose*.yml
+*.md
+LICENSE
+utils/

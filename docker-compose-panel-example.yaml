@@ -1,0 +1,67 @@
+# The web panel: create, start, stop and supervise several squeezelite players
+# from a browser instead of editing this file for each one.
+#
+#   docker compose -f docker-compose-panel-example.yaml up -d
+#   then open http://<host>:8080
+#
+# One container runs every player, so the real-time settings below apply to all
+# of them -- see the note at the bottom, they are not optional for hi-res.
+services:
+  squeezelite-panel:
+    image: ghcr.io/shuricksumy/squeezelite-pipewire:latest
+    container_name: squeezelite-panel
+    restart: unless-stopped
+
+    # Slimproto discovery is broadcast-based, and players need to reach the
+    # server directly. Host networking keeps both simple.
+    network_mode: host
+
+    environment:
+      - ROLE=panel
+      - PORT=8080
+      # Seeds the "server" field of the Add-player form. Each player can still
+      # point somewhere else, and blank means "discover it on this subnet".
+      - SERVER_IP=192.168.1.50
+      - SERVER_PORT=3483
+      # Uncomment to require a login on every page and API call. Without it the
+      # panel is open to anyone who can reach the port -- keep it on a LAN.
+      # - ADMIN_USER=admin
+      # - ADMIN_PASSWORD=change-me
+      - PIPEWIRE_RUNTIME_DIR=/tmp
+      - PIPEWIRE_REMOTE=pipewire-0
+
+    volumes:
+      # players.json lives here. Without it every player you create is lost on
+      # the next restart -- the panel shows a warning banner if it is missing.
+      # Create it first, or Docker makes it root-owned and the panel cannot write:
+      #     mkdir -p ./panel_config && sudo chown -R 1000:1000 ./panel_config
+      - ./panel_config:/config
+      - /run/user/1000/pipewire-0:/tmp/pipewire-0
+      - /dev/shm:/dev/shm
+      # Optional: direct ALSA access as a fallback
+      - /dev/snd:/dev/snd
+
+    # Real-time scheduling is a container-level property and squeezelite is the
+    # bit-perfect path, so this matters more here than for a casual player: the
+    # children inherit THIS container's limits. Without them every player runs at
+    # ordinary priority and drops out at 192 kHz. The panel shows a warning
+    # banner when they are missing, so you can tell at a glance.
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+    ulimits:
+      rtprio: 95
+      memlock: -1
+      msgqueue: 8192000
+    group_add:
+      - audio
+      - video
+
+    # The image runs as uid/gid 1000. If the user owning the PipeWire socket
+    # above is not 1000, set it here -- and chown ./panel_config to match.
+    # user: "1000:1000"
+
+# Verify a player is really bit-perfect once it is playing:
+#   cat /proc/asound/card*/stream0
+# Status should be Running and "Momentary freq" should sit at the track's rate
+# (44100 for CD-rate material, not resampled to 48000).

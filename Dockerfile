@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfaad2 \
     libmpg123-0 \
     libopusfile0 \
+    python3-flask \
     pipewire-bin \
     wireplumber \
     libasound2-plugins \
@@ -76,6 +77,10 @@ COPY --from=builder /build/squeezelite /usr/local/bin/squeezelite
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/squeezelite
 
+# The web panel (ROLE=panel). Flask comes from Debian rather than pip so the
+# image keeps a single package manager and Trivy can see what is installed.
+COPY panel/ /opt/panel/
+
 # Verify the runtime image can actually satisfy squeezelite:
 #  - libssl/libcrypto are linked directly (NO_SSLSYM), so a missing one would
 #    stop the binary from starting at all, not just disable TLS
@@ -93,9 +98,12 @@ RUN ldd /usr/local/bin/squeezelite && \
 # gets mounted in (/run/user/1000/pipewire-0) is normally owned by the desktop
 # user; if yours differs, override with `user: "<uid>:<gid>"` in compose.
 # The audio group is for the optional /dev/snd passthrough.
+# /config is pre-created so ROLE=panel works with a named volume out of the box;
+# a host bind mount keeps host ownership and needs `sudo chown -R 1000:1000 <dir>`
+# once, which both the entrypoint and the panel UI say if it is missing.
 RUN groupadd -g 1000 squeezelite && \
     useradd -u 1000 -g 1000 -G audio -M -s /usr/sbin/nologin squeezelite && \
-    install -d -o 1000 -g 1000 /home/squeezelite
+    install -d -o 1000 -g 1000 /home/squeezelite /config
 
 # PipeWire/WirePlumber clients write state under $HOME, which must be writable
 ENV HOME=/home/squeezelite
@@ -110,8 +118,22 @@ ENV PIPEWIRE_REMOTE=pipewire-0
 # again, which is what the `group_add: audio` in the compose files is for.
 USER squeezelite
 
-# Confirm the unprivileged user can actually execute the binary
-RUN /usr/local/bin/squeezelite -? > /dev/null
+ENV ROLE=player \
+    PORT=8080
+
+# Report unhealthy only when the panel stops answering HTTP. ROLE=player has no
+# HTTP surface and is healthy by definition -- its own reconnect loop is the
+# story there, and a player retrying against an unreachable server is alive and
+# doing exactly what it should.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD python3 /opt/panel/healthcheck.py
+
+# Confirm the unprivileged user can actually execute the binary and that the
+# panel imports -- a missing python3-flask would otherwise only surface when
+# somebody first sets ROLE=panel.
+RUN /usr/local/bin/squeezelite -? > /dev/null && \
+    python3 -c "import sys; sys.path.insert(0, '/opt/panel'); import app" && \
+    echo "panel imports OK"
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
