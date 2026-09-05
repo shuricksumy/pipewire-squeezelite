@@ -97,8 +97,25 @@ else
     sudo apt-get update
     sudo apt-get install -y \
         docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    sudo systemctl enable --now docker
-    echo ">>> $(docker --version)"
+    # Not fatal: PipeWire is what this script is really for, and Docker failing
+    # to start is usually a host condition that has nothing to do with audio.
+    if sudo systemctl enable --now docker; then
+        echo ">>> $(docker --version)"
+    else
+        echo ">>> WARN: Docker is installed but the daemon did not start." >&2
+        if [ ! -d "/lib/modules/$(uname -r)" ]; then
+            # The usual cause on SBCs. A kernel upgrade removed the running
+            # kernel's modules, so nothing can be modprobed -- including
+            # nf_tables, without which dockerd cannot create its NAT chain and
+            # exits with "iptables: Could not fetch rule set generation id".
+            echo ">>> The running kernel $(uname -r) has no /lib/modules directory:" >&2
+            echo ">>> a kernel upgrade is waiting for a reboot. Reboot, then re-run this." >&2
+        else
+            echo ">>> Check:  systemctl status docker.service" >&2
+            echo ">>>         journalctl -u docker.service -n 50 --no-pager" >&2
+        fi
+        echo ">>> Continuing with the PipeWire setup, which does not need Docker."
+    fi
 fi
 
 # --- 1. USER SETUP ---
