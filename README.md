@@ -8,7 +8,7 @@ This repository provides a high-performance Squeezelite Docker container optimiz
 
 <p align="center">
   <a href="#panel"><img src="docs/panel-players.png" width="92%" alt="The web panel: three squeezelite players, two running against Music Assistant, one on a direct ALSA device"></a>
-  <br><sub><b>Run the image and open port 8080.</b> Add a player, pick its DAC, press
+  <br><sub><b>Run the image and open the panel.</b> Add a player, pick its DAC, press
   Start — no compose editing, no SSH. Each row is its own supervised squeezelite
   process. <a href="#panel">More about the panel ↓</a></sub>
 </p>
@@ -120,8 +120,16 @@ order, then use the [readiness check](#5-verify-the-host-is-ready) at the end be
 container.
 
 > **Shortcut:** [`ubuntu-pipewire-install-on-host.sh`](ubuntu-pipewire-install-on-host.sh) performs
-> steps 1-5 for a dedicated user, verifies the socket, and prints the compose settings for your
-> host: `./ubuntu-pipewire-install-on-host.sh <username>` (default user: `dietpi`).
+> steps 1-5, verifies the socket, and prints the compose settings for your host:
+>
+> ```bash
+> ./ubuntu-pipewire-install-on-host.sh              # the uid-1000 user, whatever it is called
+> ./ubuntu-pipewire-install-on-host.sh <username>   # or a specific account
+> ```
+>
+> With no argument it targets **uid 1000** — the uid the container runs as, and the one in the
+> `/run/user/1000/pipewire-0` path the compose files mount, so no `user:` line is needed. A
+> username that does not exist yet is created, taking uid 1000 if that is still free.
 
 ### 0. Prerequisites
 

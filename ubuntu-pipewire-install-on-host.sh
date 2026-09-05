@@ -3,12 +3,14 @@
 # under a lingering user session, bit-perfect clock config, and the socket the
 # container bind-mounts at /run/user/<uid>/pipewire-0.
 #
-# Usage:  ./ubuntu-pipewire-install-on-host.sh [username]      (default: dietpi)
+# Usage:  ./ubuntu-pipewire-install-on-host.sh [username]
+#
+# With no argument it sets up whoever owns uid 1000, which is what the container
+# runs as and what the compose files bind-mount (/run/user/1000/pipewire-0). Pass
+# a username to use a different account -- if it does not exist yet it is created,
+# taking uid 1000 when that is still free.
 
 set -euo pipefail
-
-# --- CONFIGURATION ---
-TARGET_USER="${1:-${TARGET_USER:-dietpi}}"
 
 trap 'echo ">>> FAILED at line $LINENO. Nothing below this point ran." >&2' ERR
 
@@ -17,7 +19,12 @@ if [ "$(id -u)" -ne 0 ] && ! sudo -n true 2>/dev/null; then
     exit 1
 fi
 
-echo ">>> Starting Audiophile Environment Setup for user: $TARGET_USER"
+TARGET_USER="${1:-${TARGET_USER:-}}"
+if [ -n "$TARGET_USER" ]; then
+    echo ">>> Starting Audiophile Environment Setup for user: $TARGET_USER"
+else
+    echo ">>> Starting Audiophile Environment Setup for the uid-1000 user"
+fi
 
 # --- 0. INSTALLATION ---
 # Package names matter: apt aborts the WHOLE command on one unknown name, so a
@@ -32,11 +39,32 @@ sudo apt-get install -y \
     wireplumber alsa-utils pulseaudio-utils rtkit
 
 # --- 1. USER SETUP ---
-if id "$TARGET_USER" &>/dev/null; then
-    echo ">>> User '$TARGET_USER' already exists. Updating groups..."
+if [ -n "$TARGET_USER" ]; then
+    if id "$TARGET_USER" &>/dev/null; then
+        echo ">>> User '$TARGET_USER' already exists. Updating groups..."
+    else
+        # Pin uid 1000 when it is free: the image runs as 1000, so matching it
+        # means no 'user:' line is needed in compose.
+        if getent passwd 1000 >/dev/null; then
+            echo ">>> Creating audio user '$TARGET_USER' (uid 1000 is taken by $(getent passwd 1000 | cut -d: -f1))..."
+            sudo useradd -m -s /bin/bash "$TARGET_USER"
+        else
+            echo ">>> Creating audio user '$TARGET_USER' with uid 1000..."
+            sudo useradd -m -u 1000 -s /bin/bash "$TARGET_USER"
+        fi
+    fi
 else
-    echo ">>> Creating dedicated audio user '$TARGET_USER'..."
-    sudo useradd -m -s /bin/bash "$TARGET_USER"
+    # No argument: the uid-1000 account, whatever it is called on this box --
+    # dietpi, ubuntu, pi, or your own login.
+    # '|| true': getent exits non-zero when there is no uid 1000, and under
+    # 'set -e' that would kill the script before the friendly message below.
+    TARGET_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
+    if [ -z "$TARGET_USER" ]; then
+        echo ">>> No user with uid 1000 on this host, and no username given." >&2
+        echo ">>> Pass one to create it:  $0 <username>" >&2
+        exit 1
+    fi
+    echo ">>> No username given; using uid 1000 -> '$TARGET_USER'"
 fi
 
 USER_UID="$(id -u "$TARGET_USER")"
