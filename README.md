@@ -133,9 +133,14 @@ container.
 
 ### 0. Prerequisites
 
-Docker Engine plus the Compose plugin ([install guide](https://docs.docker.com/engine/install/)),
-and the uid of the user whose PipeWire session the container will attach to. Note it now - the
-same number appears in the socket path *and* decides whether you need a `user:` line in compose:
+Docker Engine plus the Compose plugin. The script above installs both from Docker's own
+repository when `docker` is not already on the host (distro packages lag and often omit the
+compose plugin); set `SKIP_DOCKER=1` to leave an existing setup alone, or install it yourself
+from the [official guide](https://docs.docker.com/engine/install/).
+
+You also want the uid of the user whose PipeWire session the container will attach to. Note it
+now - the same number appears in the socket path *and* decides whether you need a `user:` line
+in compose:
 
 ```bash
 id -u    # usually 1000

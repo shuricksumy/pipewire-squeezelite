@@ -36,7 +36,70 @@ echo ">>> Installing PipeWire and audiophile tools..."
 sudo apt-get update
 sudo apt-get install -y \
     pipewire pipewire-audio pipewire-pulse pipewire-alsa \
-    wireplumber alsa-utils pulseaudio-utils rtkit
+    wireplumber alsa-utils pulseaudio-utils rtkit \
+    ca-certificates curl
+
+# --- 0b. DOCKER ---
+# The container has to run somewhere. Distro packages lag badly and often ship
+# without the compose plugin, so this uses Docker's own repository -- the same
+# steps as https://lindevs.com/install-docker-ce-on-ubuntu/, with the repo URI
+# chosen for Debian or Ubuntu rather than assuming one.
+# Set SKIP_DOCKER=1 to leave the host's Docker setup alone.
+if [ -n "${SKIP_DOCKER:-}" ]; then
+    echo ">>> SKIP_DOCKER set -- not touching Docker."
+elif command -v docker >/dev/null 2>&1; then
+    echo ">>> Docker already installed: $(docker --version)"
+    if ! docker compose version >/dev/null 2>&1; then
+        echo ">>> WARN: the 'docker compose' plugin is missing. The compose files in"
+        echo ">>> this repo need it:  sudo apt-get install -y docker-compose-plugin"
+    fi
+else
+    # Which flavour of Docker's repo to use. ID_LIKE covers the derivatives --
+    # Armbian, Raspberry Pi OS, Mint -- which is most of the boxes this runs on.
+    # Read rather than sourced: /etc/os-release is shell syntax, and sourcing it
+    # would drop a dozen names (NAME, VERSION, ID...) into this script's scope.
+    # '|| true' matters: plain Debian has no ID_LIKE line, so grep exits 1, and
+    # under 'set -e' that would abort the script inside the assignment below.
+    os_field() { grep -E "^$1=" /etc/os-release 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"' || true; }
+    OS_ID="$(os_field ID)"
+    OS_LIKE="$(os_field ID_LIKE)"
+    DOCKER_CODENAME="$(os_field VERSION_CODENAME)"
+    [ -n "$DOCKER_CODENAME" ] || DOCKER_CODENAME="$(os_field UBUNTU_CODENAME)"
+
+    DOCKER_DISTRO=""
+    case " $OS_ID $OS_LIKE " in
+        *" ubuntu "*) DOCKER_DISTRO=ubuntu ;;
+        *" debian "*) DOCKER_DISTRO=debian ;;
+    esac
+
+    if [ -z "$DOCKER_DISTRO" ] || [ -z "$DOCKER_CODENAME" ]; then
+        echo ">>> Cannot tell which Docker repository fits this system." >&2
+        echo ">>> Install Docker yourself, then re-run:" >&2
+        echo ">>>     https://docs.docker.com/engine/install/" >&2
+        exit 1
+    fi
+
+    echo ">>> Installing Docker CE for $DOCKER_DISTRO/$DOCKER_CODENAME..."
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL "https://download.docker.com/linux/$DOCKER_DISTRO/gpg" \
+        -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+    # Skip if some other tool already configured the repo (newer installs use the
+    # DEB822 docker.sources); adding both would give apt a duplicate entry.
+    if [ -f /etc/apt/sources.list.d/docker.sources ]; then
+        echo ">>> docker.sources already present; leaving the repo config alone."
+    else
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$DOCKER_DISTRO $DOCKER_CODENAME stable" \
+            | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+    fi
+
+    sudo apt-get update
+    sudo apt-get install -y \
+        docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo systemctl enable --now docker
+    echo ">>> $(docker --version)"
+fi
 
 # --- 1. USER SETUP ---
 if [ -n "$TARGET_USER" ]; then
