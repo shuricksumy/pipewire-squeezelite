@@ -45,8 +45,14 @@ RUN BUILD_OPTS="$(./squeezelite -? 2>&1 | grep '^Build options:')" && \
 # --- Stage 2: Runtime ---
 FROM debian:trixie-slim
 
+# Changing this busts the apt cache so the weekly rebuild actually picks up
+# Debian security updates (CI sets it to the ISO week). apt-get upgrade applies
+# fixes already in the archive but not yet in the base image.
+ARG REFRESH_WEEK=0
+
 # Install only necessary runtime libraries and PipeWire tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN echo "cache epoch: ${REFRESH_WEEK}" && apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     libflac14 \
     libasound2 \
     libsoxr0 \

@@ -74,6 +74,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # REFRESH_WEEK changes every ISO week so the scheduled rebuild re-runs
+      # apt instead of restoring the whole image from the cache unchanged.
+      - name: Resolve cache epoch
+        id: inputs
+        run: echo "refresh_week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v6
@@ -99,6 +105,8 @@ jobs:
           # not publish -- :latest would be replaced by unreviewed code.
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            REFRESH_WEEK=${{ steps.inputs.outputs.refresh_week }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
