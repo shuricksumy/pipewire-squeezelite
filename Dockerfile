@@ -43,7 +43,7 @@ RUN BUILD_OPTS="$(./squeezelite -? 2>&1 | grep '^Build options:')" && \
     done
 
 # --- Stage 2: Runtime ---
-FROM debian:trixie-slim@sha256:89c1ea91e897f0fe0a3731595330bc45b8bdef4047464a07116f891a94054b31
+FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
 
 # Changing this busts the apt cache so the weekly rebuild actually picks up
 # Debian security updates (CI sets it to the ISO week). apt-get upgrade applies
